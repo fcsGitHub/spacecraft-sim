@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>外接配置 — 空间飞行器仿真系统</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="icon" type="image/svg+xml" href="favicon.svg" />
+<link rel="stylesheet" href="shared/tokens.css" />
+<style>
+  body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+  .page-toolbar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 16px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+    flex: none;
+  }
+
+  .layout {
+    flex: 1; min-height: 0;
+    display: grid;
+    grid-template-columns: 248px 1fr 360px;
+    gap: 12px;
+    padding: 12px 16px 16px;
+  }
+
+  /* 左：分类导航 */
+  .cat-nav { display: flex; flex-direction: column; }
+  .cat-body { padding: 8px; overflow: auto; flex: 1; }
+  .cat-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; border-radius: 6px;
+    cursor: pointer; user-select: none;
+    border: 1px solid transparent;
+  }
+  .cat-item:hover { background: var(--bg-sunken); }
+  .cat-item.selected { background: var(--accent-soft); border-color: oklch(0.58 0.14 245 / 0.35); }
+  .cat-item .name { font-size: 13px; font-weight: 500; flex: 1; }
+  .cat-item.selected .name { color: var(--accent-strong); }
+  .cat-item .sub { font-size: 11px; color: var(--ink-3); margin-top: 1px; }
+  .cat-foot { padding: 12px 14px; border-top: 1px solid var(--line); font-size: 11.5px; color: var(--ink-3); line-height: 1.7; }
+  .cat-foot b { color: var(--ink-2); font-weight: 500; }
+
+  /* 中：系统卡片 */
+  .sys-col { overflow: auto; min-height: 0; display: flex; flex-direction: column; gap: 12px; padding-bottom: 4px; }
+  .sys-card { flex: none; }
+  .sys-card .panel-h { padding: 12px 16px; }
+  .sys-card .desc { font-size: 12px; color: var(--ink-3); margin-top: 2px; }
+  .sys-card .panel-b { padding: 14px 16px; overflow: visible; flex: none; }
+  .sys-grid { display: grid; grid-template-columns: 140px 1fr 130px 150px; gap: 12px 14px; }
+  .sys-grid .wide { grid-column: 2 / span 3; }
+  .sys-foot {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 16px;
+    border-top: 1px solid var(--line);
+    background: oklch(0.975 0.003 95);
+    border-radius: 0 0 var(--r-md) var(--r-md);
+    font-size: 12px; color: var(--ink-3);
+  }
+  .sys-foot .lat { font-family: var(--mono); color: var(--ink-2); }
+  .sys-card.disabled .panel-b, .sys-card.disabled .sys-foot { opacity: 0.45; pointer-events: none; }
+
+  .testing { display: inline-flex; gap: 3px; align-items: center; }
+  .testing i { width: 4px; height: 4px; border-radius: 50%; background: var(--accent); animation: blink 0.8s infinite; }
+  .testing i:nth-child(2) { animation-delay: 0.15s; }
+  .testing i:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes blink { 0%, 100% { opacity: 0.2; } 50% { opacity: 1; } }
+
+  /* 右：版本管理 */
+  .right-col { display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+  .ver-panel { flex: 1; min-height: 0; }
+  .ver-item { display: flex; gap: 10px; padding: 10px 4px; border-bottom: 1px solid var(--line); align-items: flex-start; }
+  .ver-item:last-child { border-bottom: none; }
+  .ver-tag { font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--ink); width: 44px; flex: none; padding-top: 1px; }
+  .ver-info { flex: 1; min-width: 0; }
+  .ver-note { font-size: 12.5px; color: var(--ink); }
+  .ver-time { font-size: 11px; color: var(--ink-3); font-family: var(--mono); margin-top: 2px; }
+  .snap-row { display: flex; gap: 8px; margin-bottom: 4px; }
+
+  .health-list { display: flex; flex-direction: column; gap: 2px; }
+  .health-row { display: flex; align-items: center; gap: 9px; padding: 6px 4px; font-size: 12.5px; }
+  .health-row .nm { flex: 1; }
+  .health-row .st { font-size: 11.5px; color: var(--ink-3); font-family: var(--mono); }
+</style>
+</head>
+<body>
+<script src="shared/nav.js" data-page="config"></script>
+
+<div class="page-toolbar">
+  <span style="font-size:13px; font-weight:600;">外接系统配置</span>
+  <span class="badge mono" id="cfg-ver-chip">v2.4 当前生效</span>
+  <div class="nav-right" style="margin-left:auto; display:flex; gap:8px;">
+    <button class="btn sm" id="tb-test-all">测试全部连接</button>
+    <button class="btn sm" id="tb-export-cfg">导出配置</button>
+  </div>
+</div>
+
+<main class="layout">
+  <!-- 左：分类 -->
+  <section class="panel cat-nav">
+    <div class="panel-h"><span class="t">系统分类</span></div>
+    <div class="cat-body" id="cat-body"></div>
+    <div class="cat-foot">
+      连接状态每 <b>10 s</b> 自动心跳检测。<br />
+      修改即时生效并计入<b>未保存变更</b>，建议实验前保存配置快照。
+    </div>
+  </section>
+
+  <!-- 中：系统卡片 -->
+  <div class="sys-col" id="sys-col"></div>
+
+  <!-- 右：健康总览 + 版本 -->
+  <aside class="right-col">
+    <section class="panel">
+      <div class="panel-h"><span class="t">健康总览</span><span class="spacer"></span><span class="sub" id="health-sub"></span></div>
+      <div class="panel-b" style="flex:none;"><div class="health-list" id="health-list"></div></div>
+    </section>
+    <section class="panel ver-panel">
+      <div class="panel-h"><span class="t">配置版本管理</span><span class="spacer"></span><span class="sub">快照可回滚</span></div>
+      <div class="panel-b">
+        <div class="snap-row">
+          <input class="input" id="snap-note" placeholder="本次变更说明，如：切换规划服务至 gRPC" />
+          <button class="btn sm primary" id="snap-save" style="flex:none;">保存快照</button>
+        </div>
+        <div id="ver-list"></div>
+      </div>
+    </section>
+  </aside>
+</main>
+
+<script src="shared/api.js"></script>
+<script src="config-page.js"></script>
+</body>
+</html>

@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>场景生成 — 空间飞行器仿真系统</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="icon" type="image/svg+xml" href="favicon.svg" />
+<link rel="stylesheet" href="shared/tokens.css" />
+<style>
+  body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+  .page-toolbar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 16px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+    flex: none;
+  }
+  .page-toolbar .sep { width: 1px; height: 20px; background: var(--line); margin: 0 4px; }
+  .autosave { font-size: 11.5px; color: var(--ink-3); display: flex; align-items: center; gap: 6px; }
+
+  .layout {
+    flex: 1; min-height: 0;
+    display: grid;
+    grid-template-columns: 272px 1fr 440px;
+    gap: 12px;
+    padding: 12px 16px 16px;
+  }
+
+  /* ---------- 左侧结构树 ---------- */
+  .tree { display: flex; flex-direction: column; }
+  .tree-body { flex: 1; overflow: auto; padding: 8px; }
+  .tnode {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 10px; border-radius: 6px;
+    cursor: pointer; user-select: none;
+    font-size: 13px;
+    border: 1px solid transparent;
+  }
+  .tnode:hover { background: var(--bg-sunken); }
+  .tnode.selected { background: var(--accent-soft); border-color: oklch(0.58 0.14 245 / 0.35); color: var(--accent-strong); font-weight: 500; }
+  .tnode .ic { font-family: var(--mono); font-size: 10px; color: var(--ink-3); width: 18px; text-align: center; flex: none; }
+  .tnode .lb { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tnode.selected .ic { color: var(--accent-strong); }
+  .tnode .cnt { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); flex: none; }
+  .tnode.child { margin-left: 22px; font-size: 12.5px; }
+  .tnode .err-flag { width: 6px; height: 6px; border-radius: 50%; background: var(--danger); flex: none; }
+  .tgroup-head { display: flex; align-items: center; }
+  .tgroup-head .tnode { flex: 1; }
+  .tadd {
+    flex: none; width: 24px; height: 24px; border-radius: 5px;
+    display: grid; place-items: center;
+    color: var(--ink-3); cursor: pointer; font-size: 15px;
+    margin-left: 2px;
+  }
+  .tadd:hover { background: var(--accent-soft); color: var(--accent-strong); }
+
+  /* ---------- 中间表单 ---------- */
+  .form-col { display: flex; flex-direction: column; }
+  .form-body { flex: 1; overflow: auto; padding: 18px 22px; }
+  .fsection { margin-bottom: 22px; }
+  .fsection > h3 {
+    font-size: 12px; font-weight: 600; color: var(--ink-2);
+    letter-spacing: 0.04em; margin: 0 0 12px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .fsection > h3::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+  .fgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px 16px; }
+  .fgrid .span2 { grid-column: span 2; }
+  .fgrid .span3 { grid-column: span 3; }
+  .form-actions { display: flex; gap: 8px; padding-top: 6px; }
+
+  .orbit-preview-wrap { display: flex; gap: 18px; align-items: flex-start; }
+  .orbit-preview {
+    flex: none; width: 180px; height: 180px;
+    background: var(--dark-bg); border-radius: var(--r-md);
+    border: 1px solid var(--dark-line);
+  }
+  .orbit-readout { font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); line-height: 1.9; }
+  .orbit-readout b { color: var(--ink); font-weight: 500; }
+
+  .ev-table .input, .ev-table .select { padding: 5px 8px; font-size: 12.5px; }
+  .ev-del { color: var(--ink-3); cursor: pointer; font-size: 15px; padding: 2px 6px; border-radius: 4px; }
+  .ev-del:hover { color: var(--danger); background: var(--danger-soft); }
+
+  /* ---------- 右侧预览 ---------- */
+  .preview-col { display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+  .code-panel { flex: 1.6; min-height: 0; }
+  .code-panel .panel-b { padding: 0; background: var(--dark-bg); border-radius: 0 0 var(--r-md) var(--r-md); }
+  pre.code {
+    margin: 0; padding: 14px 16px;
+    font-family: var(--mono); font-size: 11.5px; line-height: 1.6;
+    color: var(--dark-ink-2);
+    white-space: pre; min-height: 100%;
+  }
+  pre.code .k { color: oklch(0.78 0.10 245); }
+  pre.code .s { color: oklch(0.78 0.10 190); }
+  pre.code .n { color: oklch(0.80 0.11 75); }
+  pre.code .p { color: var(--dark-ink-3); }
+
+  .valid-panel { flex: 1; min-height: 140px; }
+  .vitem { display: flex; gap: 9px; padding: 7px 4px; font-size: 12.5px; border-bottom: 1px solid var(--line); align-items: baseline; }
+  .vitem:last-child { border-bottom: none; }
+  .vitem .dot { margin-top: 1px; align-self: center; }
+  .vitem .loc { font-weight: 600; flex: none; }
+  .vitem .msg { color: var(--ink-2); }
+  .valid-pass { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 24px 0; color: var(--ink-3); font-size: 12.5px; }
+  .valid-pass .big { font-size: 26px; color: var(--ok); }
+
+  /* 模板下拉 */
+  .menu-wrap { position: relative; }
+  .menu {
+    position: absolute; top: calc(100% + 4px); left: 0; z-index: 60;
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--r-md); box-shadow: var(--shadow-2);
+    min-width: 230px; padding: 5px; display: none;
+  }
+  .menu.open { display: block; }
+  .menu .mi { padding: 8px 11px; border-radius: 5px; cursor: pointer; }
+  .menu .mi:hover { background: var(--bg-sunken); }
+  .menu .mi .t { font-size: 13px; font-weight: 500; }
+  .menu .mi .d { font-size: 11.5px; color: var(--ink-3); margin-top: 2px; }
+</style>
+</head>
+<body>
+<script src="shared/nav.js" data-page="scenario"></script>
+
+<div class="page-toolbar">
+  <button class="btn sm" id="tb-new">新建场景</button>
+  <div class="menu-wrap">
+    <button class="btn sm" id="tb-template">场景模板 ▾</button>
+    <div class="menu" id="template-menu">
+      <div class="mi" data-tpl="default"><div class="t">多星协同观测（默认）</div><div class="d">8 星 · 观测 + 中继 + 机动试验 + 非合作目标</div></div>
+      <div class="mi" data-tpl="rendezvous"><div class="t">双星交会对接</div><div class="d">追踪星 + 目标星 · 相对运动构型实验</div></div>
+      <div class="mi" data-tpl="constellation"><div class="t">区域观测星座</div><div class="d">12 星 Walker 构型 · 覆盖与调度算法</div></div>
+    </div>
+  </div>
+  <div class="sep"></div>
+  <button class="btn sm" id="tb-import">导入 JSON</button>
+  <input type="file" id="import-file" accept=".json,.yaml,.yml,application/json" style="display:none" />
+  <button class="btn sm" id="tb-export-json">导出 JSON</button>
+  <button class="btn sm" id="tb-export-yaml">导出 YAML</button>
+  <div class="sep"></div>
+  <span id="valid-chip" class="badge ok">校验通过</span>
+  <div class="nav-right" style="margin-left:auto; display:flex; align-items:center; gap:14px;">
+    <span class="autosave"><span class="dot ok" id="autosave-dot"></span><span id="autosave-text">已自动保存</span></span>
+    <a class="btn sm primary" href="situation.html" style="text-decoration:none">载入仿真 →</a>
+  </div>
+</div>
+
+<main class="layout">
+  <!-- 左：结构树 -->
+  <section class="panel tree">
+    <div class="panel-h"><span class="t">场景结构</span><span class="spacer"></span><span class="sub" id="tree-stat"></span></div>
+    <div class="tree-body" id="tree-body"></div>
+  </section>
+
+  <!-- 中：表单 -->
+  <section class="panel form-col">
+    <div class="panel-h"><span class="t" id="form-title">场景元信息</span><span class="spacer"></span><span class="sub" id="form-sub"></span></div>
+    <div class="form-body" id="form-body"></div>
+  </section>
+
+  <!-- 右：预览 + 校验 -->
+  <aside class="preview-col">
+    <section class="panel code-panel dark-zone">
+      <div class="tabs" id="code-tabs">
+        <div class="tab active" data-fmt="json">JSON</div>
+        <div class="tab" data-fmt="yaml">YAML</div>
+        <span class="spacer" style="flex:1"></span>
+        <button class="btn ghost sm" id="copy-code" style="align-self:center; margin-right:6px;">复制</button>
+      </div>
+      <div class="panel-b"><pre class="code" id="code-pre"></pre></div>
+    </section>
+    <section class="panel valid-panel">
+      <div class="panel-h"><span class="t">校验结果</span><span class="spacer"></span><span class="sub" id="valid-sub"></span></div>
+      <div class="panel-b" id="valid-body"></div>
+    </section>
+  </aside>
+</main>
+
+<script src="shared/api.js"></script>
+<script src="shared/store.js"></script>
+<script src="scenario-editor.js"></script>
+</body>
+</html>

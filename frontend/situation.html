@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>仿真态势 — 空间飞行器仿真系统</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="icon" type="image/svg+xml" href="favicon.svg" />
+<link rel="stylesheet" href="shared/tokens.css" />
+<link rel="stylesheet" href="situation.css" />
+</head>
+<body>
+<script src="shared/nav.js" data-page="situation"></script>
+
+<!-- 运行控制条 -->
+<div class="sim-toolbar">
+  <div class="ctl-group">
+    <button class="btn sm" id="ctl-play" title="开始/暂停">▶ 开始</button>
+    <button class="btn sm" id="ctl-step" title="单步推进 10s">step +10s</button>
+    <button class="btn sm" id="ctl-reset" title="复位到 T+0">复位</button>
+  </div>
+  <div class="ctl-group speed-group" id="speed-group">
+    <span class="lbl">倍速</span>
+    <button class="spd" data-v="1">1×</button>
+    <button class="spd" data-v="10">10×</button>
+    <button class="spd active" data-v="60">60×</button>
+    <button class="spd" data-v="300">300×</button>
+  </div>
+  <div class="sim-clock">
+    <span class="lbl">仿真时刻</span>
+    <span class="mono big" id="clock-t">T+00:00:00</span>
+    <span class="mono utc" id="clock-utc"></span>
+  </div>
+  <div class="ctl-group mode-group">
+    <button class="mode active" id="mode-live"><span class="dot danger" id="rec-dot"></span>实时仿真</button>
+    <button class="mode" id="mode-replay">回放分析</button>
+  </div>
+  <div class="repro mono" id="repro-chip" title="本次运行的可复现标识">seed 20260612 · 场景 v1.2.0</div>
+</div>
+
+<main class="sit-layout">
+  <!-- 左：实体列表 -->
+  <section class="panel ent-panel">
+    <div class="panel-h"><span class="t">实体列表</span><span class="spacer"></span><span class="sub" id="ent-count"></span></div>
+    <div class="ent-body" id="ent-body"></div>
+  </section>
+
+  <!-- 中：三维态势 -->
+  <section class="view3d dark-zone" id="view3d">
+    <canvas id="gl-canvas"></canvas>
+    <div id="label-layer"></div>
+    <div class="view-modes" id="view-modes">
+      <button class="vm active" data-m="global">全景</button>
+      <button class="vm" data-m="track">跟踪</button>
+      <button class="vm" data-m="local">局部</button>
+    </div>
+    <div class="view-hint mono" id="view-hint">拖拽旋转 · 滚轮缩放 · 点击卫星选中</div>
+    <div class="sel-card" id="sel-card" style="display:none;"></div>
+  </section>
+
+  <!-- 右：分析面板 -->
+  <aside class="panel right-panel">
+    <div class="tabs" id="right-tabs">
+      <div class="tab active" data-t="telemetry">遥测曲线</div>
+      <div class="tab" data-t="geometry">几何分析</div>
+      <div class="tab" data-t="command">指令注入</div>
+    </div>
+    <div class="right-body" id="tab-telemetry"></div>
+    <div class="right-body" id="tab-geometry" style="display:none;"></div>
+    <div class="right-body" id="tab-command" style="display:none;"></div>
+  </aside>
+</main>
+
+<!-- 底部：事件时间线 + 回放 -->
+<footer class="panel timeline-panel">
+  <div class="tl-head">
+    <span class="t">事件时间线</span>
+    <span class="tl-legend mono">
+      <i class="lg" style="background:oklch(0.68 0.14 75)"></i>机动
+      <i class="lg" style="background:oklch(0.62 0.13 190)"></i>载荷
+      <i class="lg" style="background:oklch(0.58 0.14 245)"></i>指令
+      <i class="lg" style="background:oklch(0.55 0.17 28)"></i>预警
+    </span>
+    <span class="spacer"></span>
+    <span class="sub mono" id="tl-range"></span>
+  </div>
+  <div class="tl-track" id="tl-track">
+    <div class="tl-progress" id="tl-progress"></div>
+    <div class="tl-marks" id="tl-marks"></div>
+    <div class="tl-cursor" id="tl-cursor"></div>
+  </div>
+  <div class="tl-log" id="tl-log"></div>
+</footer>
+
+
+<script src="vendor/three.min.js"></script>
+<script src="vendor/OrbitControls.js"></script>
+<script src="shared/api.js"></script>
+<script src="shared/store.js"></script>
+<script src="situation-scene.js"></script>
+<script src="situation-panels.js"></script>
+<script src="situation-main.js"></script>
+
+</body>
+</html>

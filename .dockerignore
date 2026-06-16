@@ -1,0 +1,34 @@
+# 版本控制 / 编辑器
+.git
+.gitignore
+.claude
+.remember
+.playwright-mcp
+
+# Python 缓存与测试产物
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/htmlcov
+**/.coverage
+
+# 运行期可变数据（容器内由卷提供，自动重建种子）
+backend/data/recordings
+backend/data/scenario.json
+backend/data/external_config.json
+
+# 设计稿 / 归档 / 截图（与运行无关，避免拉大镜像）
+design
+design.tar.gz
+space-craft.zip
+*.docx
+*.png
+*.zip
+
+# Docker 自身
+Dockerfile
+.dockerignore
+docker-compose.yml

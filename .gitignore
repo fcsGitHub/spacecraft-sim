@@ -1,0 +1,30 @@
+# Python caches & test artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+.coverage.*
+*.egg-info/
+.venv/
+venv/
+
+# Local tooling / editor
+.claude/settings.local.json
+.remember/
+.playwright-mcp/
+.idea/
+.vscode/
+
+# Runtime-mutable data (auto-created & reseeded from server/defaults.py on startup)
+backend/data/recordings/
+backend/data/scenario.json
+backend/data/external_config.json
+backend/data/models/
+
+# OS
+.DS_Store
+Thumbs.db

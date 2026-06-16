@@ -1,0 +1,12 @@
+{
+  "typeCheckingMode": "standard",
+  "reportExplicitAny": false,
+  "reportUnknownVariableType": false,
+  "reportUnknownMemberType": false,
+  "reportUnknownArgumentType": false,
+  "reportUnknownParameterType": false,
+  "reportAny": false,
+  "reportMissingTypeStubs": false,
+  "extraPaths": ["backend"],
+  "exclude": ["**/node_modules", "**/__pycache__", ".remember"]
+}

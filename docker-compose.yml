@@ -1,0 +1,27 @@
+# 空间飞行器仿真系统 —— 一键部署
+#   docker compose up -d --build      启动（构建 + 后台运行）
+#   docker compose logs -f            查看日志
+#   docker compose down               停止并移除容器（数据卷保留）
+services:
+  spacecraft-sim:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: spacecraft-sim:latest
+    container_name: spacecraft-sim
+    ports:
+      - "${PORT:-8000}:8000"
+    environment:
+      # 容器内固定监听 8000；对外端口由上面的 ${PORT} 映射
+      PORT: "8000"
+      HOST: "0.0.0.0"
+    volumes:
+      # 运行数据持久化：场景、外接配置、回放录制
+      - scsim-data:/app/data
+      # 研究人员的自定义外部模型：把 *.py 放进宿主 ./models 即自动加载
+      # （默认外部模型目录为 $SCSIM_DATA_DIR/models = /app/data/models）
+      - ./models:/app/data/models
+    restart: unless-stopped
+
+volumes:
+  scsim-data:
