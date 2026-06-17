@@ -5,10 +5,10 @@ from __future__ import annotations
 from typing import Any
 
 
-def _sat(sid: str, name: str, group: str, payload: str, a: float, e: float, i: float,
-         raan: float, argp: float, m0: float, fuel: float, mass: float) -> dict[str, Any]:
+def _sat(sid: str, name: str, group: str, faction: str, payload: str, a: float, e: float,
+         i: float, raan: float, argp: float, m0: float, fuel: float, mass: float) -> dict[str, Any]:
     return {
-        "id": sid, "name": name, "group": group,
+        "id": sid, "name": name, "group": group, "faction": faction,
         "mass": mass, "fuel": fuel,
         "payload": {"type": payload, "state": "待机", "power": 450 if payload == "通信中继" else 320},
         "orbit": {"a": a, "e": e, "i": i, "raan": raan, "argp": argp, "M0": m0},
@@ -29,14 +29,14 @@ def default_scenario() -> dict[str, Any]:
         "sim": {"epoch": "2026-06-12T04:00:00Z", "duration": 7200, "step": 1,
                 "seed": 20260612, "record": True},
         "satellites": [
-            _sat("SAT-01", "侦察-01", "观测星组", "光学成像", 6878, 0.0011, 97.5, 60, 90, 0, 86, 1240),
-            _sat("SAT-02", "侦察-02", "观测星组", "光学成像", 6878, 0.0011, 97.5, 60, 90, 40, 82, 1240),
-            _sat("SAT-03", "侦察-03", "观测星组", "合成孔径雷达", 6928, 0.0015, 97.8, 100, 90, 0, 78, 1560),
-            _sat("SAT-04", "中继-01", "通信中继组", "通信中继", 12760, 0.0008, 28.5, 30, 0, 0, 93, 2100),
-            _sat("SAT-05", "中继-02", "通信中继组", "通信中继", 12760, 0.0008, 28.5, 150, 0, 120, 91, 2100),
-            _sat("SAT-06", "机动试验星", "试验星组", "电子侦察", 7178, 0.021, 45.0, 200, 30, 0, 64, 980),
-            _sat("TGT-01", "目标-01", "非合作目标", "未知", 7078, 0.003, 53.0, 210, 60, 25, 50, 800),
-            _sat("TGT-02", "目标-02", "非合作目标", "未知", 7278, 0.015, 63.4, 250, 270, 80, 50, 800),
+            _sat("SAT-01", "侦察-01", "观测星组", "红方", "光学成像", 6878, 0.0011, 97.5, 60, 90, 0, 86, 1240),
+            _sat("SAT-02", "侦察-02", "观测星组", "红方", "光学成像", 6878, 0.0011, 97.5, 60, 90, 40, 82, 1240),
+            _sat("SAT-03", "侦察-03", "观测星组", "红方", "合成孔径雷达", 6928, 0.0015, 97.8, 100, 90, 0, 78, 1560),
+            _sat("SAT-04", "中继-01", "通信中继组", "红方", "通信中继", 12760, 0.0008, 28.5, 30, 0, 0, 93, 2100),
+            _sat("SAT-05", "中继-02", "通信中继组", "红方", "通信中继", 12760, 0.0008, 28.5, 150, 0, 120, 91, 2100),
+            _sat("SAT-06", "机动试验星", "试验星组", "红方", "电子侦察", 7178, 0.021, 45.0, 200, 30, 0, 64, 980),
+            _sat("TGT-01", "目标-01", "非合作目标", "蓝方", "未知", 7078, 0.003, 53.0, 210, 60, 25, 50, 800),
+            _sat("TGT-02", "目标-02", "非合作目标", "蓝方", "未知", 7278, 0.015, 63.4, 250, 270, 80, 50, 800),
         ],
         "groundStations": [
             {"id": "GS-01", "name": "北京站", "lat": 40.1, "lon": 116.3},

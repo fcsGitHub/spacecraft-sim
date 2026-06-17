@@ -3,8 +3,9 @@
 场景结构（与前端场景生成页一致）：
     meta:        { name, version, author, created, description }
     sim:         { epoch, duration, step, seed, record }
-    satellites:  [{ id, name, group, mass, fuel, payload:{type,state,power},
+    satellites:  [{ id, name, group, faction, mass, fuel, payload:{type,state,power},
                     orbit:{ a(km), e, i, raan, argp, M0 } }]
+                 group=编组（功能分组），faction=阵营（红方/蓝方/中立，可选，驱动三维配色）
     groundStations: [{ id, name, lat, lon }]
     events:      [{ t, type(机动/载荷/姿态/系统), target, action }]
 
@@ -23,6 +24,7 @@ from simcore.timebase import parse_epoch
 
 EARTH_R_KM = 6371.0
 EVENT_TYPES = ("机动", "载荷", "姿态", "系统")
+FACTIONS = ("红方", "蓝方", "中立")   # 阵营预设值（红蓝对抗）；其它取值仅警告不报错
 
 
 class ScenarioError(ValueError):
@@ -47,7 +49,8 @@ class OrbitDef:
 class SatelliteDef:
     sat_id: str
     name: str
-    group: str
+    group: str      # 编组（功能分组）
+    faction: str    # 阵营（红方/蓝方/中立）
     mass: float     # (kg)
     fuel: float     # 燃料余量 (%)
     payload_type: str
@@ -187,6 +190,9 @@ def validate_scenario(data: Any) -> tuple[list[dict[str, str]], list[dict[str, s
         mass = _num(st.get("mass"))
         if mass is None or mass <= 0:
             err(loc, "整星质量须大于 0")
+        faction = st.get("faction")
+        if faction and str(faction) not in FACTIONS:
+            warn(loc, f"阵营 {faction} 非预设值（红方/蓝方/中立），三维将按中立色显示")
         comps = st.get("components")
         if comps is not None:
             if not isinstance(comps, list):
@@ -255,6 +261,7 @@ def scenario_from_dict(data: dict[str, Any]) -> Scenario:
             sat_id=str(st["id"]),
             name=str(st["name"]),
             group=str(st.get("group") or ""),
+            faction=str(st.get("faction") or ""),
             mass=float(st["mass"]),
             fuel=float(st["fuel"]),
             payload_type=str((st.get("payload") or {}).get("type") or "未知"),

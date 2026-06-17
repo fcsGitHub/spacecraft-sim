@@ -301,6 +301,15 @@ async def sim_commands() -> list[dict[str, Any]]:
     return runner.command_list()
 
 
+@app.get("/api/simulation/predict")
+async def sim_predict(horizon: float = 86400.0, step: float | None = None) -> dict[str, Any]:
+    """预推演当前态势的各实体未来航迹（默认 1 天，动力学与本次推演一致）。"""
+    try:
+        return await runner.predict(horizon, step)
+    except RuntimeError_ as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+
 # ---------- 回放 ----------
 
 @app.get("/api/replays")

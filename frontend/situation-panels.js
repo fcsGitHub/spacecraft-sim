@@ -63,7 +63,7 @@
         var st = ctx.stateOf(s.id) || {};
         var it = h("div", "ent-item" + (sel === s.id ? " selected" : ""));
         it.innerHTML = '<span class="sw"></span><span class="nm"></span><span class="alt mono"></span>';
-        it.querySelector(".sw").style.background = SitScene.groupColor(s.group);
+        it.querySelector(".sw").style.background = SitScene.factionColor(s.faction);
         it.querySelector(".nm").innerHTML = "<div></div><div class='pl'></div>";
         it.querySelector(".nm div").textContent = s.name;
         it.querySelector(".pl").textContent = s.id + " · " + (st.payload_type || s.payload.type);
@@ -113,7 +113,7 @@
       "<span>燃料余量</span><b>" + (st.fuel_pct != null ? st.fuel_pct.toFixed(1) + " %" : "—") + "</b>" +
       "</div>";
     card.querySelector("h4").textContent = s.name;
-    card.querySelector(".gid").textContent = s.id + " · " + s.group;
+    card.querySelector(".gid").textContent = s.id + " · " + s.group + " · " + (s.faction || "中立");
   }
 
   /* ---------- 图表 ---------- */
@@ -551,9 +551,10 @@
         document.querySelectorAll("#right-tabs .tab").forEach(function (x) { x.classList.remove("active"); });
         tab.classList.add("active");
         activeTab = tab.getAttribute("data-t");
-        ["telemetry", "geometry", "command"].forEach(function (k) {
+        ["telemetry", "geometry", "formation", "command"].forEach(function (k) {
           $("tab-" + k).style.display = k === activeTab ? "block" : "none";
         });
+        if (activeTab === "formation" && window.SitFormation) SitFormation.update();
       };
     });
   }
@@ -566,6 +567,7 @@
       buildTelemetryTab();
       buildGeometryTab();
       buildCommandTab();
+      if (window.SitFormation) { SitFormation.init(c); SitFormation.build(); }
       renderEntities();
       renderTimelineMarks();
     },
@@ -573,6 +575,7 @@
       buildTelemetryTab();
       buildGeometryTab();
       buildCommandTab();
+      if (window.SitFormation) SitFormation.rebuild();
       renderEntities();
     },
     renderEntities: renderEntities,
@@ -586,6 +589,7 @@
       updateSelCard();
       if (activeTab === "telemetry") updateTelemetry();
       if (activeTab === "geometry") updateGeometry();
+      if (activeTab === "formation" && window.SitFormation) SitFormation.update();
       if (activeTab === "command") updateCommandQueue();
       updateTimeline();
     },

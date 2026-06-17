@@ -22,6 +22,12 @@
     histories: {}, states: {}
   };
 
+  // 预推演缓存（构型分析与 ECI 叠加共用）。实时走后端接口，回放用游标后帧。
+  var prediction = {
+    horizon: 86400, baseStep: S.sim.step || 1, t0: 0, step_used: 0,
+    times: [], tracks: {}, loading: false, error: null, requested: false
+  };
+
   function $(id) { return document.getElementById(id); }
 
   /* ---------- 事件集合 ---------- */
@@ -49,7 +55,7 @@
       if (arr.length && t <= arr[arr.length - 1].t + 1e-9) return;
       arr.push({
         t: t, alt: st.alt_km, spd: st.speed_kmps,
-        att: st.att_dev_deg, fuel: st.fuel_pct, pos: st.pos_km
+        att: st.att_dev_deg, fuel: st.fuel_pct, pos: st.pos_km, vel: st.vel_kmps
       });
       if (arr.length > 4000) arr.splice(0, arr.length - 4000);
     });
@@ -73,8 +79,73 @@
     var rec = lookup(store[satId], tk);
     return rec && rec.pos ? { x: rec.pos[0], y: rec.pos[1], z: rec.pos[2] } : null;
   }
+  function sampleVel(satId, tk) {
+    var store = mode === "replay" ? replay.histories : histories;
+    var rec = lookup(store[satId], tk);
+    return rec && rec.vel ? { x: rec.vel[0], y: rec.vel[1], z: rec.vel[2] } : null;
+  }
   function stateOf(id) {
     return (mode === "replay" ? replay.states : liveStates)[id] || null;
+  }
+
+  /* ---------- 预推演 ---------- */
+  function predictionPosTracks() {
+    var out = {};
+    Object.keys(prediction.tracks).forEach(function (id) {
+      out[id] = prediction.tracks[id].map(function (p) { return p.pos_km; });
+    });
+    return out;
+  }
+  function applyOverlay() { SitScene.setPredicted(predictionPosTracks()); }
+
+  function buildReplayPrediction() {
+    var t = replay.t, end = t + prediction.horizon;
+    var startIdx = frameIndexAt(t);
+    if (startIdx < 0) startIdx = 0;
+    var tracks = {}, times = [];
+    (S.satellites || []).forEach(function (s) { tracks[s.id] = []; });
+    for (var k = startIdx; k < replay.frames.length; k++) {
+      var f = replay.frames[k];
+      if (f.t < t - 1e-9) continue;
+      if (f.t > end + 1e-9) break;
+      times.push(f.t);
+      S.satellites.forEach(function (s) {
+        var st = f.entities[s.id] || {};
+        tracks[s.id].push({ pos_km: st.pos_km || [], vel_kmps: st.vel_kmps || [] });
+      });
+    }
+    prediction.t0 = t; prediction.times = times; prediction.tracks = tracks;
+    prediction.step_used = 0; prediction.loading = false; prediction.error = null;
+    applyOverlay();
+  }
+
+  function refreshPrediction(horizon) {
+    if (horizon != null) prediction.horizon = horizon;
+    if (mode === "replay") { prediction.requested = true; buildReplayPrediction(); return; }
+    if (status.state === "idle") { prediction.error = "场景未装载"; return; }
+    prediction.requested = true;
+    prediction.loading = true;
+    prediction.baseStep = status.step || S.sim.step || 1;
+    SCAPI.get("/api/simulation/predict?horizon=" + prediction.horizon).then(function (res) {
+      prediction.t0 = res.t0;
+      prediction.times = res.times || [];
+      prediction.tracks = res.tracks || {};
+      prediction.step_used = res.step_used_s;
+      prediction.loading = false;
+      prediction.error = null;
+      applyOverlay();
+      SitPanels.update();
+    }).catch(function (e) {
+      prediction.loading = false;
+      prediction.error = (e && e.message) || "预推演失败";
+      SitPanels.update();
+    });
+  }
+
+  function clearPrediction() {
+    prediction.times = []; prediction.tracks = {}; prediction.error = null;
+    prediction.loading = false; prediction.requested = false;
+    SitScene.setPredicted(null);
   }
 
   /* ---------- 三维场景 ---------- */
@@ -107,8 +178,12 @@
     },
     sample: sample,
     samplePos: samplePos,
+    sampleVel: sampleVel,
     stateOf: stateOf,
     posOf: function (id) { return SitScene.satPos(id); },
+    getMode: function () { return mode; },
+    getPrediction: function () { return prediction; },
+    refreshPrediction: refreshPrediction,
     onSelect: selectSat,
     setAlertThreshold: function (km) {
       clearTimeout(thresholdTimer);
@@ -148,6 +223,10 @@
     if (st.state === "finished" && prev.state === "running") {
       scToast("仿真到达结束时刻 " + SitPanels.fmtT(st.duration) + "，可切换回放分析");
     }
+    // 暂停瞬间刷新预推演，使构型视图与 ECI 叠加对齐当前态势
+    if (mode === "live" && prediction.requested && st.state === "paused" && prev.state === "running") {
+      refreshPrediction();
+    }
   }
 
   $("ctl-play").onclick = function () {
@@ -174,6 +253,7 @@
       liveEvents = [];
       commands = [];
       SitScene.clearTrails();
+      clearPrediction();
       displayT = 0;
       scToast("已复位至 T+0 · 相同种子与指令序列可完整复现本次实验");
       SitPanels.update();
@@ -197,6 +277,7 @@
   function setMode(m) {
     if (m === mode) return;
     mode = m;
+    clearPrediction();
     $("mode-live").classList.toggle("active", m === "live");
     $("mode-replay").classList.toggle("active", m === "replay");
     $("view-hint").textContent = m === "replay"

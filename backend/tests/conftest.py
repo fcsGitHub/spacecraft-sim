@@ -31,13 +31,13 @@ def make_scenario_dict(**overrides):
         },
         "satellites": [
             {
-                "id": "SAT-01", "name": "测试星1", "group": "观测星组",
+                "id": "SAT-01", "name": "测试星1", "group": "观测星组", "faction": "红方",
                 "mass": 1000, "fuel": 80,
                 "payload": {"type": "光学成像", "state": "待机", "power": 320},
                 "orbit": {"a": 6878, "e": 0.001, "i": 97.5, "raan": 60, "argp": 90, "M0": 0},
             },
             {
-                "id": "SAT-02", "name": "测试星2", "group": "观测星组",
+                "id": "SAT-02", "name": "测试星2", "group": "观测星组", "faction": "蓝方",
                 "mass": 1200, "fuel": 90,
                 "payload": {"type": "合成孔径雷达", "state": "待机", "power": 450},
                 "orbit": {"a": 6878, "e": 0.001, "i": 97.5, "raan": 60, "argp": 90, "M0": 40},

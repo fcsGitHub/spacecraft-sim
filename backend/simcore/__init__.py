@@ -42,6 +42,12 @@ from simcore.scenario import (
     validate_scenario,
 )
 from simcore.engine import Frame, ScheduledCommand, SimulationEngine
+from simcore.predict import (
+    PredictionResult,
+    capture_state,
+    predict_tracks,
+    run_prediction,
+)
 from simcore.translate import TranslateError, command_from_event, command_from_template
 from simcore.recorder import Recorder, delete_recording, list_recordings, load_recording
 
@@ -70,6 +76,10 @@ __all__ = [
     "Frame",
     "ScheduledCommand",
     "SimulationEngine",
+    "PredictionResult",
+    "predict_tracks",
+    "capture_state",
+    "run_prediction",
     "TranslateError",
     "command_from_event",
     "command_from_template",

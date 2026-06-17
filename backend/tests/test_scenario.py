@@ -52,6 +52,18 @@ class TestValidation:
         errors, _ = validate_scenario(scenario_dict)
         assert any("种子" in e["msg"] for e in errors)
 
+    def test_unknown_faction_warns_not_errors(self, scenario_dict):
+        scenario_dict["satellites"][0]["faction"] = "紫方"
+        errors, warnings = validate_scenario(scenario_dict)
+        assert errors == []
+        assert any("阵营" in w["msg"] for w in warnings)
+
+    def test_missing_faction_is_allowed(self, scenario_dict):
+        del scenario_dict["satellites"][0]["faction"]
+        errors, warnings = validate_scenario(scenario_dict)
+        assert errors == []
+        assert warnings == []
+
     def test_invalid_epoch(self, scenario_dict):
         scenario_dict["sim"]["epoch"] = "not-a-date"
         errors, _ = validate_scenario(scenario_dict)
@@ -66,6 +78,12 @@ class TestLoading:
         assert len(sc.satellites) == 2
         assert sc.satellites[0].orbit.a == 6878
         assert sc.ground_stations[0].name == "北京站"
+
+    def test_faction_parsed_and_defaults_empty(self, scenario_dict):
+        del scenario_dict["satellites"][1]["faction"]
+        sc = scenario_from_dict(scenario_dict)
+        assert sc.satellites[0].faction == "红方"
+        assert sc.satellites[1].faction == ""  # 缺省为空
 
     def test_from_json_text(self, scenario_dict):
         sc = load_scenario(json.dumps(scenario_dict, ensure_ascii=False))

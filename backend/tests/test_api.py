@@ -162,6 +162,30 @@ class TestSimulationApi:
             assert "SAT-01" in second["data"]["entities"]
 
 
+class TestPredictApi:
+    def test_predict_returns_tracks(self, client, short_scenario):
+        client.post("/api/simulation/load", json=short_scenario)
+        r = client.get("/api/simulation/predict", params={"horizon": 600, "step": 60})
+        assert r.status_code == 200
+        body = r.json()
+        assert set(body["tracks"]) == {"SAT-01", "SAT-02"}
+        assert len(body["tracks"]["SAT-01"]) == len(body["times"])
+        assert body["step_used_s"] == pytest.approx(1.0)  # 短时长用引擎步长
+        assert len(body["tracks"]["SAT-01"][0]["pos_km"]) == 3
+
+    def test_predict_default_one_day_coarsens(self, client, short_scenario):
+        client.post("/api/simulation/load", json=short_scenario)
+        r = client.get("/api/simulation/predict")  # 默认 86400s
+        assert r.status_code == 200
+        assert r.json()["horizon_s"] == pytest.approx(86400.0)
+        assert r.json()["step_used_s"] > 1.0
+
+    def test_predict_rejects_bad_horizon(self, client, short_scenario):
+        client.post("/api/simulation/load", json=short_scenario)
+        r = client.get("/api/simulation/predict", params={"horizon": 0})
+        assert r.status_code == 409
+
+
 class TestExternalApi:
     def test_get_config(self, client):
         r = client.get("/api/external/config")

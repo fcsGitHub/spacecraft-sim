@@ -54,7 +54,7 @@ docker run -d -p 8000:8000 -v scsim-data:/app/data --name scsim spacecraft-sim
 | 页面 | 文件 | 功能 |
 |------|------|------|
 | 01 场景生成 | `frontend/scenario.html` | 结构树 + 表单编辑卫星/地面站/预设事件，轨道预览，JSON/YAML 实时预览与导入导出，实时校验，自动同步后端 |
-| 02 仿真态势 | `frontend/situation.html` | 三维态势（全景/跟踪/局部视角），运行控制（开始/暂停/单步/复位/1–300 倍速），遥测曲线，几何分析（星间距离/通视/接近预警/地面站可见性），异步指令注入（立即/定时），事件时间线，回放分析（拖动时间线任意跳转） |
+| 02 仿真态势 | `frontend/situation.html` | 三维态势（全景/跟踪/局部视角，按**阵营**着色 + **预推演轨迹**叠加），运行控制（开始/暂停/单步/复位/1–300 倍速），遥测曲线，几何分析（星间距离/通视/接近预警/地面站可见性），**构型分析**（LVLH/RIC 相对运动视图：两星已运行+预推演相对航迹），异步指令注入（立即/定时），事件时间线，回放分析（拖动时间线任意跳转） |
 | 03 外接配置 | `frontend/config.html` | 外接系统分类管理（算法服务/仿真引擎/数据接口/数据外发/可视化），真实连通性测试（TCP 探测/本地目录探测），配置快照版本与真实回滚，UDP/TCP 态势帧外发 |
 
 前端为纯静态页面（无构建步骤），由 FastAPI 托管；Three.js 已本地化（`frontend/vendor/`）。
@@ -73,6 +73,7 @@ backend/
 │   ├── assembly.py          # 实体组装：卫星 = 推进→轨道→姿态→载荷 组件链
 │   ├── translate.py         # 前端指令模板/预设事件 → 引擎指控(ctr)/导调(dir)指令
 │   ├── engine.py            # 步进推进、指令调度、接近预警裁决、数据恢复快照
+│   ├── predict.py           # 预推演：克隆引擎状态前向空跑（动力学一致，含预约指令）
 │   ├── recorder.py          # 回放录制（采样帧 + 全量事件）
 │   └── models/              # 内置原子模型（研究人员扩展入口）
 │       ├── orbit_j2.py      #   J2 轨道动力学（支持推力输入、导调轨道重置）
@@ -191,6 +192,7 @@ engine.end()
 | POST | `/api/simulation/load` · `/start` · `/pause` · `/reset` · `/step` · `/speed` | 仿真过程控制 |
 | POST | `/api/simulation/command` | **异步指令注入**：`{tpl, target, params, when: now/later, delay}` |
 | GET | `/api/simulation/commands` | 指令队列（含执行状态） |
+| GET | `/api/simulation/predict` | **预推演**：`?horizon=&step=`，沙箱前向推演各实体未来航迹（动力学与本次推演一致，含未触发预约指令；默认 1 天） |
 | POST | `/api/simulation/alert-threshold` | 接近预警门限 |
 | GET/DELETE | `/api/replays` · `/api/replays/{id}` | 回放录制列表/详情/删除 |
 | GET/PUT | `/api/external/config` | 外接系统配置 |

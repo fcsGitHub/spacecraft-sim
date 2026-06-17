@@ -29,7 +29,8 @@ class EntityInfo:
     entity_id: str = ""
     model_id: int = 0
     name: str = ""
-    group: str = ""
+    group: str = ""        # 编组（功能分组，如 观测星组/非合作目标）
+    faction: str = ""      # 阵营（红方/蓝方/中立，红蓝对抗用，与编组互不影响）
 
 
 @dataclass(frozen=True)

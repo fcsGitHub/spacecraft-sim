@@ -148,6 +148,15 @@ body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 .sec-h { font-size: 11px; font-weight: 600; color: var(--ink-3); letter-spacing: 0.05em; margin: 14px 0 6px; display: flex; align-items: center; gap: 8px; }
 .sec-h::after { content: ""; flex: 1; height: 1px; background: var(--line); }
 
+/* 构型分析（LVLH 相对运动） */
+.fm-canvas { width: 100%; aspect-ratio: 1 / 1; max-height: 300px; background: var(--dark-bg); border-radius: 6px; border: 1px solid var(--dark-line); display: block; margin-bottom: 12px; }
+.fm-ctrl { display: flex; gap: 8px; align-items: center; margin: 4px 0 10px; }
+.fm-ctrl .select { flex: 1; }
+.fm-legend { display: flex; gap: 16px; font-size: 10.5px; color: var(--ink-3); margin-bottom: 6px; }
+.fm-legend .lg { display: inline-block; width: 16px; height: 0; vertical-align: 3px; margin-right: 5px; border-top: 2px solid var(--ink-2); }
+.fm-legend .lg.dash { border-top-style: dashed; }
+.fm-status { font-size: 11px; color: var(--ink-3); }
+
 /* 指令注入 */
 .cmd-form { display: flex; flex-direction: column; gap: 11px; }
 .cmd-form .frow { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }

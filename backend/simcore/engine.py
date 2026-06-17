@@ -128,7 +128,9 @@ class SimulationEngine:
                 )
                 for name, model_cls, _attrs in build_components(sat)
             ]
-            info = EntityInfo(entity_id=sat.sat_id, name=sat.name, group=sat.group)
+            info = EntityInfo(
+                entity_id=sat.sat_id, name=sat.name, group=sat.group, faction=sat.faction
+            )
             self._entities[sat.sat_id] = _Entity(info=info, components=components)
 
     # ---- 生命周期 ----
@@ -218,6 +220,13 @@ class SimulationEngine:
                   "params": dict(cmd.params), "codes": codes, "source": cmd.source},
         )
 
+    def pending_commands(self) -> list[ScheduledCommand]:
+        """尚未触发的计划指令（按时间序）。供预推演沙箱携带未来预约机动/事件。
+
+        ScheduledCommand 为 frozen dataclass，返回浅拷贝列表即可安全复用。
+        """
+        return list(self._schedule)
+
     def _fire_due_commands(self) -> list[ParamKeyOutput]:
         fired: list[ParamKeyOutput] = []
         while self._schedule and self._schedule_keys[0] <= self.clock.t + 1e-9:
@@ -239,6 +248,7 @@ class SimulationEngine:
                 "id": entity.info.entity_id,
                 "name": entity.info.name,
                 "group": entity.info.group,
+                "faction": entity.info.faction,
             }
             for comp in entity.components:
                 # upstream 每轮重新合并生成新字典，传入的旧字典不会被改写，无需防御性拷贝
@@ -337,6 +347,7 @@ class SimulationEngine:
                 "id": e.info.entity_id,
                 "name": e.info.name,
                 "group": e.info.group,
+                "faction": e.info.faction,
                 "components": [
                     {"name": c.name, "model": c.model.model_type} for c in e.components
                 ],

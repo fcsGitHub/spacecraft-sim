@@ -19,8 +19,10 @@ from simcore import (
     Recorder,
     SimulationEngine,
     TranslateError,
+    capture_state,
     command_from_event,
     command_from_template,
+    run_prediction,
     scenario_from_dict,
 )
 
@@ -29,6 +31,7 @@ logger = logging.getLogger("scsim.runtime")
 TICK_S = 0.05                # 推进节拍（实时秒）
 MAX_STEPS_PER_TICK = 600     # 单节拍最大步数（防止卡顿后追赶雪崩）
 BROADCAST_MIN_INTERVAL = 1 / 15  # 帧广播最高 15 Hz
+MAX_PREDICT_HORIZON_S = 7 * 86400  # 预推演时长上限（7 天）
 
 PushHook = Callable[[dict[str, Any]], Coroutine[Any, Any, None]]
 
@@ -214,6 +217,24 @@ class SimulationRunner:
     def command_list(self) -> list[dict[str, Any]]:
         t = self.engine.clock.t if self.engine else 0.0
         return [{**c, "fired": c["t"] <= t} for c in self.user_commands]
+
+    # ---- 预推演 ----
+
+    async def predict(self, horizon_s: float, sample_step_s: float | None = None
+                      ) -> dict[str, Any]:
+        """前向预推演当前态势：动力学与本次推演一致，含未触发的预约指令。
+
+        在主线程同步捕获引擎状态后，于工作线程跑前向推演，避免阻塞事件循环
+        与实时推进竞争。
+        """
+        engine = self._require_engine()
+        if not 0 < horizon_s <= MAX_PREDICT_HORIZON_S:
+            raise RuntimeError_(
+                f"预推演时长须在 (0, {MAX_PREDICT_HORIZON_S}] s，当前 {horizon_s}"
+            )
+        captured = capture_state(engine)  # 主线程同步取状态（cheap）
+        result = await asyncio.to_thread(run_prediction, captured, horizon_s, sample_step_s)
+        return result.to_dict()
 
     # ---- 广播 ----
 

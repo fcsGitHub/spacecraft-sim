@@ -8,6 +8,7 @@
   var PAYLOADS = ["光学成像", "合成孔径雷达", "电子侦察", "通信中继", "导航增强", "未知"];
   var PAYLOAD_STATES = ["待机", "开机", "关闭"];
   var EV_TYPES = ["机动", "载荷", "姿态", "系统"];
+  var FACTIONS = ["红方", "蓝方", "中立"];
 
   /* ---------- 小工具 ---------- */
   function $(id) { return document.getElementById(id); }
@@ -247,6 +248,7 @@
       gb.appendChild(field("卫星编号", textInput(st.id, function (v) { st.id = v; }, { mono: true })));
       gb.appendChild(field("卫星名称", textInput(st.name, function (v) { st.name = v; })));
       gb.appendChild(field("编组", textInput(st.group, function (v) { st.group = v; })));
+      gb.appendChild(field("阵营", selectInput(st.faction || "中立", FACTIONS, function (v) { st.faction = v; }), { hint: "红蓝对抗分组，驱动三维配色" }));
       gb.appendChild(field("整星质量 (kg)", numInput(st.mass, function (v) { st.mass = v; })));
       gb.appendChild(field("燃料余量 (%)", numInput(st.fuel, function (v) { st.fuel = v; })));
       body.appendChild(sb);
@@ -488,7 +490,7 @@
   function addSatellite() {
     var id = nextSatId();
     S.satellites.push({
-      id: id, name: "新卫星-" + id.slice(-2), group: "观测星组",
+      id: id, name: "新卫星-" + id.slice(-2), group: "观测星组", faction: "红方",
       mass: 1000, fuel: 100,
       payload: { type: "光学成像", state: "待机", power: 320 },
       orbit: { a: 6878, e: 0.001, i: 97.5, raan: 0, argp: 90, M0: 0 }
@@ -510,8 +512,8 @@
     s.meta = { name: "双星交会对接-B", version: "1.0.0", author: "算法组", created: "2026-06-12", description: "追踪星对目标星的远程导引与近程接近场景，用于相对运动制导算法验证。" };
     s.sim.duration = 10800; s.sim.seed = 42;
     s.satellites = [
-      { id: "CHS-01", name: "追踪星", group: "试验星组", mass: 2400, fuel: 95, payload: { type: "电子侦察", state: "开机", power: 380 }, orbit: { a: 6878, e: 0.0010, i: 51.6, raan: 80, argp: 30, M0: 0 } },
-      { id: "TGT-01", name: "目标星", group: "非合作目标", mass: 8500, fuel: 50, payload: { type: "未知", state: "待机", power: 0 }, orbit: { a: 6893, e: 0.0012, i: 51.6, raan: 80, argp: 30, M0: 4 } }
+      { id: "CHS-01", name: "追踪星", group: "试验星组", faction: "红方", mass: 2400, fuel: 95, payload: { type: "电子侦察", state: "开机", power: 380 }, orbit: { a: 6878, e: 0.0010, i: 51.6, raan: 80, argp: 30, M0: 0 } },
+      { id: "TGT-01", name: "目标星", group: "非合作目标", faction: "蓝方", mass: 8500, fuel: 50, payload: { type: "未知", state: "待机", power: 0 }, orbit: { a: 6893, e: 0.0012, i: 51.6, raan: 80, argp: 30, M0: 4 } }
     ];
     s.events = [
       { t: 1200, type: "机动", target: "CHS-01", action: "霍曼转移第一次点火 Δv=4.2 m/s" },
@@ -531,7 +533,7 @@
         s.satellites.push({
           id: "WLK-" + String(n).padStart(2, "0"),
           name: "观测-" + String(n).padStart(2, "0"),
-          group: "星座面" + (p + 1),
+          group: "星座面" + (p + 1), faction: "红方",
           mass: 860, fuel: 90,
           payload: { type: "光学成像", state: "待机", power: 300 },
           orbit: { a: 7178, e: 0.001, i: 55, raan: p * 120, argp: 0, M0: (k * 90 + p * 30) % 360 }

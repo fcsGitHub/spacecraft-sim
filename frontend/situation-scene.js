@@ -7,6 +7,15 @@
   var SCALE = 1 / 100; // 1 单位 = 100 km
   var OMEGA_E = (2 * Math.PI) / 86164;
 
+  // 阵营驱动卫星主色（红蓝对抗）
+  var FACTION_COLORS = {
+    "红方": "#d96459",
+    "蓝方": "#5b8def",
+    "中立": "#8a93a6"
+  };
+  var FACTION_FALLBACK = "#8a93a6";  // 未指定/非预设阵营按中立色
+
+  // 编组配色（保留：左侧列表分组等场合可用）
   var GROUP_COLORS = {
     "观测星组": "#5b8def",
     "通信中继组": "#3fb5ad",
@@ -16,7 +25,8 @@
   var FALLBACK_COLORS = ["#9b7fd4", "#6fae6f", "#c47fb0"];
 
   var renderer, scene, camera, controls, raycaster;
-  var earthGroup, satGroup, orbitGroup, trailGroup, localGroup;
+  var earthGroup, satGroup, orbitGroup, trailGroup, localGroup, predGroup;
+  var ECI_PRED_PTS = 80;  // ECI 预推叠加最多绘制的采样点（限长保证可读，全程见构型视图）
   var labelLayer, canvas, onSelectCb;
   var sats = [];       // {data, mesh, hit, ring, orbitLine, trail, trailBuf, color, labelEl, state, frameT, trailPts}
   var stations = [];
@@ -35,6 +45,7 @@
     }
     return groupColorCache[g];
   }
+  function factionColor(f) { return FACTION_COLORS[f] || FACTION_FALLBACK; }
 
   /* ---------- 开普勒递推（仅用于轨道线绘制与初始位置） ---------- */
   function eciPos(o, t) {
@@ -113,6 +124,7 @@
     scene.add(earthGroup);
 
     orbitGroup = new THREE.Group(); scene.add(orbitGroup);
+    predGroup = new THREE.Group(); scene.add(predGroup);
     trailGroup = new THREE.Group(); scene.add(trailGroup);
     satGroup = new THREE.Group(); scene.add(satGroup);
     localGroup = new THREE.Group(); scene.add(localGroup);
@@ -161,12 +173,12 @@
   }
 
   function build(scenario) {
-    clearGroup(orbitGroup); clearGroup(satGroup); clearGroup(trailGroup); clearGroup(localGroup);
+    clearGroup(orbitGroup); clearGroup(satGroup); clearGroup(trailGroup); clearGroup(localGroup); clearGroup(predGroup);
     labelLayer.innerHTML = "";
     sats = []; stations = [];
 
     scenario.satellites.forEach(function (sd) {
-      var color = groupColor(sd.group);
+      var color = factionColor(sd.faction);
       var mesh = new THREE.Mesh(
         new THREE.SphereGeometry(1.1, 12, 10),
         new THREE.MeshBasicMaterial({ color: color })
@@ -262,6 +274,29 @@
     sats.forEach(function (s) {
       s.trailPts = [];
       s.trail.geometry.setDrawRange(0, 0);
+    });
+  }
+
+  /* ---------- 预推演轨迹叠加（ECI，虚线；限长保证可读，全程见构型视图） ---------- */
+  function setPredicted(tracks) {
+    clearGroup(predGroup);
+    if (!tracks) return;
+    Object.keys(tracks).forEach(function (id) {
+      var s = findSat(id);
+      var pts = tracks[id];
+      if (!s || !pts || pts.length < 2) return;
+      var n = Math.min(pts.length, ECI_PRED_PTS);
+      var verts = [];
+      for (var k = 0; k < n; k++) {
+        var p = pts[k];
+        verts.push(toThree({ x: p[0], y: p[1], z: p[2] }));
+      }
+      var geo = new THREE.BufferGeometry().setFromPoints(verts);
+      var ln = new THREE.Line(geo, new THREE.LineDashedMaterial({
+        color: s.color, dashSize: 1.6, gapSize: 1.1, transparent: true, opacity: 0.6
+      }));
+      ln.computeLineDistances();
+      predGroup.add(ln);
     });
   }
 
@@ -407,10 +442,12 @@
     setEntityFrame: setEntityFrame,
     setTime: setTime,
     clearTrails: clearTrails,
+    setPredicted: setPredicted,
     frame: frame,
     resize: resize,
     satPos: satPos,
     groupColor: groupColor,
+    factionColor: factionColor,
     setSelected: function (id) { selectedId = id; },
     setViewMode: function (m) { viewMode = m; },
     EARTH_R: EARTH_R,
