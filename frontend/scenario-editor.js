@@ -10,15 +10,14 @@
   var EV_TYPES = ["机动", "载荷", "姿态", "系统"];
   var FACTIONS = ["红方", "蓝方", "中立"];
 
+  /* ---------- 共享 UI 原语（FormKit）---------- */
+  var FK = window.FormKit;
+  var h = FK.h, esc = FK.esc, field = FK.field, textInput = FK.textInput,
+      numInput = FK.numInput, selectInput = FK.selectInput, toggleInput = FK.toggleInput,
+      section = FK.section, grid = FK.grid;
+
   /* ---------- 小工具 ---------- */
   function $(id) { return document.getElementById(id); }
-  function h(tag, cls, html) {
-    var el = document.createElement(tag);
-    if (cls) el.className = cls;
-    if (html !== undefined) el.innerHTML = html;
-    return el;
-  }
-  function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
   function debounce(fn, ms) {
     var t;
     return function () { clearTimeout(t); t = setTimeout(fn, ms); };
@@ -123,74 +122,6 @@
     sel = s;
     renderTree();
     renderForm();
-  }
-
-  /* ---------- 表单字段构造 ---------- */
-  function field(label, inputEl, opts) {
-    opts = opts || {};
-    var f = h("div", "field" + (opts.span ? " span" + opts.span : ""));
-    var lb = h("label");
-    lb.textContent = label;
-    f.appendChild(lb);
-    f.appendChild(inputEl);
-    if (opts.hint) {
-      var hint = h("div", "hint");
-      hint.textContent = opts.hint;
-      f.appendChild(hint);
-    }
-    return f;
-  }
-  function textInput(value, onInput, opts) {
-    opts = opts || {};
-    var inp = h("input", "input" + (opts.mono ? " mono" : ""));
-    inp.type = "text";
-    inp.value = value == null ? "" : value;
-    inp.setAttribute("value", inp.value);
-    inp.oninput = function () { onInput(inp.value); inp.setAttribute("value", inp.value); refreshLight(); };
-    return inp;
-  }
-  function numInput(value, onInput, opts) {
-    opts = opts || {};
-    var inp = h("input", "input mono");
-    inp.type = "number";
-    if (opts.step != null) inp.step = opts.step;
-    inp.value = value == null ? "" : value;
-    inp.setAttribute("value", inp.value);
-    inp.oninput = function () { onInput(parseFloat(inp.value)); inp.setAttribute("value", inp.value); refreshLight(); };
-    return inp;
-  }
-  function selectInput(value, options, onInput) {
-    var sl = h("select", "select");
-    options.forEach(function (o) {
-      var op = h("option");
-      op.value = o; op.textContent = o;
-      if (o === value) { op.selected = true; op.setAttribute("selected", "selected"); }
-      sl.appendChild(op);
-    });
-    sl.onchange = function () { onInput(sl.value); refreshLight(); };
-    return sl;
-  }
-  function toggleInput(value, onInput) {
-    var wrap = h("label", "switch");
-    var inp = h("input");
-    inp.type = "checkbox";
-    inp.checked = !!value;
-    inp.onchange = function () { onInput(inp.checked); refreshLight(); };
-    wrap.appendChild(inp);
-    wrap.appendChild(h("span", "track"));
-    return wrap;
-  }
-  function section(title) {
-    var s = h("div", "fsection");
-    var t = h("h3");
-    t.textContent = title;
-    s.appendChild(t);
-    return s;
-  }
-  function grid(parent) {
-    var g = h("div", "fgrid");
-    parent.appendChild(g);
-    return g;
   }
 
   /* ---------- 表单渲染 ---------- */
@@ -667,6 +598,7 @@
 
   /* ---------- 启动 ---------- */
   function renderAll() {
+    FK.onChange = refreshLight;
     renderValidation();
     renderTree();
     renderForm();
