@@ -122,7 +122,7 @@ class SimulationEngine:
     def _build_entities(self) -> None:
         for sat in self.scenario.satellites:
             info = EntityInfo(entity_id=sat.sat_id, name=sat.name,
-                              group=sat.group, faction=sat.faction)
+                              group=sat.group, faction=sat.faction, parent=sat.parent)
             self._entities[sat.sat_id] = _Entity(
                 info=info, model=build_satellite(sat),
                 ctx=SimContext(engine=self, entity_id=sat.sat_id, component=""))
@@ -344,6 +344,7 @@ class SimulationEngine:
     def entity_infos(self) -> list[dict[str, Any]]:
         return [
             {"id": e.info.entity_id, "name": e.info.name, "group": e.info.group,
-             "faction": e.info.faction, "components": e.model.describe()}
+             "faction": e.info.faction, "parent": e.info.parent,
+             "components": e.model.describe()}
             for e in self._entities.values()
         ]
