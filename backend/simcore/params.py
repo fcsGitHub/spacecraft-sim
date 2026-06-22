@@ -33,6 +33,7 @@ class EntityInfo:
     name: str = ""
     group: str = ""        # 编组（功能分组，如 观测星组/非合作目标）
     faction: str = ""      # 阵营（红方/蓝方/中立，红蓝对抗用，与编组互不影响）
+    parent: str = ""       # 母星 id（子卫星填充；顶层卫星为空）
 
 
 @dataclass(frozen=True)
