@@ -4,6 +4,36 @@
   var S = ScenarioStore.load();
   var sel = { type: "meta", i: 0 };
   var fmt = "json";
+
+  /* 卫星按路径寻址：path 为从 S.satellites 起、逐层 children 的下标数组 */
+  function satListAt(path) {
+    var list = S.satellites;
+    for (var k = 0; k < path.length - 1; k++) {
+      list = (list[path[k]].children = list[path[k]].children || []);
+    }
+    return list;
+  }
+  function satAt(path) {
+    if (!path || !path.length) return null;
+    var list = S.satellites;
+    var node = null;
+    for (var k = 0; k < path.length; k++) {
+      if (!list || !list[path[k]]) return null;
+      node = list[path[k]];
+      list = node.children || [];
+    }
+    return node;
+  }
+  function eachSat(cb) {
+    (function walk(list, path) {
+      (list || []).forEach(function (st, i) {
+        var p = path.concat([i]);
+        cb(st, p);
+        walk(st.children, p);
+      });
+    })(S.satellites, []);
+  }
+
   var MU = 398600.4418; // km^3/s^2
   var PAYLOADS = ["光学成像", "合成孔径雷达", "电子侦察", "通信中继", "导航增强", "未知"];
   var PAYLOAD_STATES = ["待机", "开机", "关闭"];
@@ -90,12 +120,19 @@
     satHead.appendChild(addSat);
     body.appendChild(satHead);
 
-    S.satellites.forEach(function (st, i) {
-      var label = st.name || st.id || "未命名";
-      body.appendChild(node(label, String(i + 1).padStart(2, "0"),
-        sel.type === "sat" && sel.i === i, locs[st.name || st.id],
-        st.id, function () { select({ type: "sat", i: i }); }, true));
-    });
+    (function walkSat(list, path, childLevel) {
+      (list || []).forEach(function (st, i) {
+        var p = path.concat([i]);
+        var label = st.name || st.id || "未命名";
+        var isSel = sel.type === "sat" && sel.path && sel.path.join(",") === p.join(",");
+        var n = node(label, String(i + 1).padStart(2, "0"), isSel,
+          locs[st.name || st.id], st.id,
+          function () { select({ type: "sat", path: p }); }, true);
+        if (childLevel) n.style.paddingLeft = (12 + childLevel * 14) + "px";
+        body.appendChild(n);
+        walkSat(st.children, p, childLevel + 1);
+      });
+    })(S.satellites, [], 0);
 
     var gsHead = h("div", "tgroup-head");
     gsHead.appendChild(node("地面站", "▽", false, false, String(S.groundStations.length), function () {}));
@@ -169,10 +206,10 @@
     }
 
     else if (sel.type === "sat") {
-      var st = S.satellites[sel.i];
+      var st = satAt(sel.path);
       if (!st) { select({ type: "meta" }); return; }
       title.textContent = st.name || st.id;
-      sub.textContent = "satellites[" + sel.i + "]";
+      sub.textContent = "satellites[" + sel.path.join("][") + "]";
 
       var sb = section("基本信息");
       var gb = grid(sb);
@@ -224,14 +261,16 @@
         c.id = nextSatId();
         c.name = st.name + "-副本";
         c.orbit.M0 = (c.orbit.M0 + 15) % 360;
-        S.satellites.splice(sel.i + 1, 0, c);
+        var list = satListAt(sel.path), idx = sel.path[sel.path.length - 1];
+        list.splice(idx + 1, 0, c);
         refreshLight();
-        select({ type: "sat", i: sel.i + 1 });
+        select({ type: "sat", path: sel.path.slice(0, -1).concat([idx + 1]) });
         scToast("已复制卫星 " + c.id);
       };
       var del = h("button", "btn sm danger-btn", "删除此卫星");
       del.onclick = function () {
-        S.satellites.splice(sel.i, 1);
+        var list = satListAt(sel.path), idx = sel.path[sel.path.length - 1];
+        list.splice(idx, 1);
         refreshLight();
         select({ type: "meta" });
         scToast("已删除卫星", "warn");
@@ -414,20 +453,25 @@
 
   /* ---------- 新增实体 ---------- */
   function nextSatId() {
+    var used = {};
+    eachSat(function (st) { used[st.id] = true; });
     var n = 1;
-    while (S.satellites.some(function (s) { return s.id === "SAT-" + String(n).padStart(2, "0"); })) n++;
+    while (used["SAT-" + String(n).padStart(2, "0")]) n++;
     return "SAT-" + String(n).padStart(2, "0");
   }
-  function addSatellite() {
-    var id = nextSatId();
-    S.satellites.push({
+  function newSat(id) {
+    return {
       id: id, name: "新卫星-" + id.slice(-2), group: "观测星组", faction: "红方",
       mass: 1000, fuel: 100,
       payload: { type: "光学成像", state: "待机", power: 320 },
       orbit: { a: 6878, e: 0.001, i: 97.5, raan: 0, argp: 90, M0: 0 }
-    });
+    };
+  }
+  function addSatellite() {
+    var id = nextSatId();
+    S.satellites.push(newSat(id));
     refreshLight();
-    select({ type: "sat", i: S.satellites.length - 1 });
+    select({ type: "sat", path: [S.satellites.length - 1] });
     scToast("已添加卫星 " + id);
   }
   function addStation() {
