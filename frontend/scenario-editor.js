@@ -151,6 +151,10 @@
     var evHasErr = validCache.errors.some(function (e) { return e.loc.indexOf("预设事件") === 0; });
     body.appendChild(node("预设事件", "⚑", sel.type === "events", evHasErr, String(S.events.length), function () { select({ type: "events" }); }));
 
+    var adjCount = (S.adjudications || []).length;
+    body.appendChild(node("裁决模型", "⚖", sel.type === "adjud", false,
+      String(adjCount), function () { select({ type: "adjud" }); }));
+
     $("tree-stat").textContent = S.satellites.length + " 星 · " + S.groundStations.length + " 站 · " + S.events.length + " 事件";
   }
   function renderTreeTexts() { renderTree(); }
@@ -355,6 +359,12 @@
       };
       se.appendChild(addEv);
       body.appendChild(se);
+    }
+
+    else if (sel.type === "adjud") {
+      title.textContent = "裁决模型";
+      sub.textContent = "adjudications[" + (S.adjudications || []).length + "]";
+      body.appendChild(AdjudEditor.render(S, function () { refreshLight(); renderForm(); }));
     }
   }
 
