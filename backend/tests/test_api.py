@@ -232,3 +232,20 @@ class TestExternalApi:
         r = client.post("/api/external/rollback", json={"tag": tag})
         assert r.json()["version"] == tag
         assert client.post("/api/external/rollback", json={"tag": "v99.9"}).status_code == 404
+
+
+def test_default_scenario_demos_subsatellite():
+    from server.defaults import default_scenario
+    from simcore.scenario import scenario_from_dict, validate_scenario
+
+    scn = default_scenario()
+    mother = next(s for s in scn["satellites"] if s["id"] == "SAT-06")
+    assert mother.get("children"), "SAT-06 应演示挂载子星"
+    errors, _ = validate_scenario(scn)
+    assert errors == []
+    built = scenario_from_dict(scn)
+    ids = {s.sat_id for s in built.satellites}
+    child_id = mother["children"][0]["id"]
+    assert child_id in ids
+    child = next(s for s in built.satellites if s.sat_id == child_id)
+    assert child.parent == "SAT-06"

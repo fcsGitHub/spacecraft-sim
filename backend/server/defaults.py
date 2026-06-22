@@ -66,6 +66,11 @@ def default_scenario() -> dict[str, Any]:
     ]
     scn["events"].append(
         {"t": 1200, "type": "拍照", "target": "SAT-01", "action": "拍照 TGT-01"})
+    # 演示：机动试验星 SAT-06 挂载一颗可独立显示的子星
+    scn["satellites"][5]["children"] = [
+        _sat("SUB-06A", "试验子星", "试验星组", "红方", "电子侦察",
+             7178, 0.021, 45.0, 200, 30, 2, 100, 120),
+    ]
     return scn
 
 
