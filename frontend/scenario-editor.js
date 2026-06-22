@@ -254,6 +254,19 @@
       gp.appendChild(field("额定功率 (W)", numInput(st.payload.power, function (v) { st.payload.power = v; })));
       body.appendChild(sp);
 
+      body.appendChild(MountsEditor.componentSection(st, function () { refreshLight(); renderForm(); }));
+      body.appendChild(MountsEditor.childrenSection(st, {
+        refresh: function () { refreshLight(); renderForm(); },
+        onSelectChild: function (ci) { select({ type: "sat", path: sel.path.concat([ci]) }); },
+        onAddChild: function () {
+          st.children = st.children || [];
+          st.children.push(newSat(nextSatId()));
+          refreshLight();
+          select({ type: "sat", path: sel.path.concat([st.children.length - 1]) });
+          scToast("已添加子卫星");
+        },
+      }));
+
       var act = h("div", "form-actions");
       var dup = h("button", "btn sm", "复制此卫星");
       dup.onclick = function () {
