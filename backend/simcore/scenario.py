@@ -57,6 +57,7 @@ class SatelliteDef:
     payload_state: str
     payload_power: float
     orbit: OrbitDef
+    parent: str = ""  # 母星 id（顶层卫星为空）；子卫星展平后填充
     # 卫星原始定义（含可选 components 自定义组件链等扩展字段，供 assembly 使用）
     raw: dict[str, Any] = field(default_factory=dict)
 
@@ -161,10 +162,12 @@ def validate_scenario(data: Any) -> tuple[list[dict[str, str]], list[dict[str, s
         err("卫星列表", "satellites 必须是数组")
         sats = []
     ids: set[str] = set()
-    for idx, st in enumerate(sats):
+    MAX_DEPTH = 4
+
+    def check_sat(st: Any, idx: int, depth: int) -> None:
         if not isinstance(st, dict):
             err(f"卫星#{idx + 1}", "卫星必须是对象")
-            continue
+            return
         loc = str(st.get("name") or st.get("id") or f"卫星#{idx + 1}")
         sid = st.get("id")
         if not sid:
@@ -217,6 +220,18 @@ def validate_scenario(data: Any) -> tuple[list[dict[str, str]], list[dict[str, s
                     if cname in comp_names:
                         err(cloc, f"组件名重复：{cname}")
                     comp_names.add(cname)
+        kids = st.get("children")
+        if kids is not None:
+            if not isinstance(kids, list):
+                err(loc, "children 须为数组（子卫星列表）")
+            elif depth >= MAX_DEPTH:
+                err(loc, f"子卫星嵌套深度超过 {MAX_DEPTH} 层")
+            else:
+                for kidx, kid in enumerate(kids):
+                    check_sat(kid, kidx, depth + 1)
+
+    for idx, st in enumerate(sats):
+        check_sat(st, idx, 1)
     if len(sats) == 0:
         err("卫星列表", "场景至少需要 1 颗卫星")
     elif len(sats) > 50:
@@ -283,6 +298,14 @@ def scenario_from_dict(data: dict[str, Any]) -> Scenario:
 
     meta = data["meta"]
     sim = data["sim"]
+    flat: list[tuple[dict[str, Any], str]] = []
+
+    def _flatten(nodes: Any, parent_id: str) -> None:
+        for st in nodes or []:
+            flat.append((st, parent_id))
+            _flatten(st.get("children"), str(st.get("id") or ""))
+
+    _flatten(data["satellites"], "")
     satellites = tuple(
         SatelliteDef(
             sat_id=str(st["id"]),
@@ -302,9 +325,10 @@ def scenario_from_dict(data: dict[str, Any]) -> Scenario:
                 argp=float(st["orbit"]["argp"]),
                 m0=float(st["orbit"]["M0"]),
             ),
+            parent=parent_id,
             raw=st,
         )
-        for st in data["satellites"]
+        for st, parent_id in flat
     )
     stations = tuple(
         GroundStationDef(
