@@ -609,6 +609,11 @@
   }
   renderAll();
 
+  /* 拉取模型注册表（驱动组件/裁决表单）；失败降级兜底，不阻塞编辑 */
+  ModelRegistry.load().then(function () {
+    if (sel.type === "sat" || sel.type === "adjud") renderForm();
+  });
+
   /* 后端为权威：启动后拉取服务端场景覆盖本地缓存 */
   ScenarioStore.pull().then(function (remote) {
     if (remote) {
