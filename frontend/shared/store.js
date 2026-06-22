@@ -55,6 +55,10 @@
       { type: "adjud.proximity", params: { threshold_km: 100 } }
     ];
     scn.events.push({ t: 1200, type: "拍照", target: "SAT-01", action: "拍照 TGT-01" });
+    /* 演示：机动试验星 SAT-06 挂载一颗可独立显示的子星（与后端 defaults.py 同构） */
+    scn.satellites[5].children = [
+      sat("SUB-06A", "试验子星", "试验星组", "红方", "电子侦察", 7178, 0.021, 45.0, 200, 30, 2, 100, 120)
+    ];
     return scn;
   }
 
@@ -164,7 +168,8 @@
     if (!Number.isInteger(Number(s.sim.seed))) err("仿真参数", "随机种子必须为整数（实验可复现的关键）");
 
     var ids = {};
-    (s.satellites || []).forEach(function (st, idx) {
+    var MAX_DEPTH = 4;
+    function checkSat(st, idx, depth) {
       var loc = st.name || st.id || "卫星#" + (idx + 1);
       if (!st.id) err(loc, "缺少卫星编号 id");
       else if (ids[st.id]) err(loc, "卫星编号重复：" + st.id);
@@ -183,7 +188,15 @@
       if (!(st.mass > 0)) err(loc, "整星质量须大于 0");
       if (st.faction && FACTIONS.indexOf(st.faction) < 0)
         warn(loc, "阵营 " + st.faction + " 非预设值（红方/蓝方/中立），三维将按中立色显示");
-    });
+      if (st.components !== undefined && !Array.isArray(st.components))
+        err(loc, "components 须为数组（缺省即使用标准组件链）");
+      if (st.children !== undefined) {
+        if (!Array.isArray(st.children)) err(loc, "children 须为数组（子卫星列表）");
+        else if (depth >= MAX_DEPTH) err(loc, "子卫星嵌套深度超过 " + MAX_DEPTH + " 层");
+        else st.children.forEach(function (kid, ki) { checkSat(kid, ki, depth + 1); });
+      }
+    }
+    (s.satellites || []).forEach(function (st, idx) { checkSat(st, idx, 1); });
     if ((s.satellites || []).length === 0) err("卫星列表", "场景至少需要 1 颗卫星");
     if ((s.satellites || []).length > 50) warn("卫星列表", "实体超过 50，三维渲染与分析刷新率可能下降");
 
