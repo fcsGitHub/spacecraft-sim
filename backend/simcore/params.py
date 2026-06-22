@@ -21,6 +21,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
+from simcore.bus import BusMessage
+
 
 @dataclass(frozen=True)
 class EntityInfo:
@@ -65,10 +67,11 @@ class ParamDirInput:
 
 @dataclass(frozen=True)
 class ParamRTInput:
-    """实时输入参数结构体：环境数据 + 实体内上游组件输出。"""
+    """实时输入参数结构体：环境数据 + 实体内上游组件输出 + 订阅消息。"""
 
     env: Mapping[str, Any] = field(default_factory=dict)        # 全局环境（其他实体快照等）
     upstream: Mapping[str, Any] = field(default_factory=dict)   # 本实体内已推进组件的输出合并
+    messages: tuple[BusMessage, ...] = ()                       # 订阅总线投递的消息（过滤后）
 
 
 @dataclass(frozen=True)
@@ -101,8 +104,9 @@ class ParamMROutput:
 
 @dataclass(frozen=True)
 class StepResult:
-    """sim_advance 的返回值：实时输出 + 关键输出 + 恢复数据。"""
+    """sim_advance 的返回值：实时输出 + 关键输出 + 发布消息 + 恢复数据。"""
 
     rt_output: ParamRTOutput = field(default_factory=ParamRTOutput)
     key_outputs: tuple[ParamKeyOutput, ...] = ()
+    messages: tuple[BusMessage, ...] = ()
     mr_output: ParamMROutput = field(default_factory=ParamMROutput)

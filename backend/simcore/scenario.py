@@ -23,7 +23,7 @@ import yaml
 from simcore.timebase import parse_epoch
 
 EARTH_R_KM = 6371.0
-EVENT_TYPES = ("机动", "载荷", "姿态", "系统")
+EVENT_TYPES = ("机动", "载荷", "姿态", "系统", "拍照")
 FACTIONS = ("红方", "蓝方", "中立")   # 阵营预设值（红蓝对抗）；其它取值仅警告不报错
 
 
@@ -72,9 +72,17 @@ class GroundStationDef:
 @dataclass(frozen=True)
 class EventDef:
     t: float
-    ev_type: str    # 机动 / 载荷 / 姿态 / 系统
+    ev_type: str    # 机动 / 载荷 / 姿态 / 系统 / 拍照
     target: str
     action: str
+
+
+@dataclass(frozen=True)
+class AdjudicationDef:
+    """裁决模型声明：引擎级中立裁决，与实体平级统一调度。"""
+
+    type: str       # 裁决模型注册键，如 adjud.photo / adjud.proximity
+    params: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -90,6 +98,7 @@ class Scenario:
     satellites: tuple[SatelliteDef, ...] = ()
     ground_stations: tuple[GroundStationDef, ...] = ()
     events: tuple[EventDef, ...] = ()
+    adjudications: tuple[AdjudicationDef, ...] = ()
     raw: dict[str, Any] = field(default_factory=dict)
 
     @property
@@ -245,6 +254,24 @@ def validate_scenario(data: Any) -> tuple[list[dict[str, str]], list[dict[str, s
         if target and str(target) not in ids:
             err(loc, f"目标 {target} 不存在于卫星列表")
 
+    adjuds = data.get("adjudications")
+    if adjuds is not None:
+        if not isinstance(adjuds, list):
+            err("裁决列表", "adjudications 必须是数组")
+        else:
+            from simcore.registry import _REGISTRY  # 延迟导入避免环
+            for idx, a in enumerate(adjuds):
+                loc = f"裁决#{idx + 1}"
+                if not isinstance(a, dict) or not a.get("type"):
+                    err(loc, "裁决项须为对象且含 type 字段")
+                    continue
+                atype = str(a["type"])
+                cls = _REGISTRY.get(atype)
+                if cls is None:
+                    err(loc, f"未注册的裁决模型类型: {atype}")
+                elif getattr(cls, "model_kind", "") != "adjudication":
+                    err(loc, f"{atype} 不是裁决模型（model_kind 须为 adjudication）")
+
     return errors, warnings
 
 
@@ -302,6 +329,11 @@ def scenario_from_dict(data: dict[str, Any]) -> Scenario:
             key=lambda e: e.t,
         )
     )
+    adjudications = tuple(
+        AdjudicationDef(type=str(a.get("type") or ""), params=dict(a.get("params") or {}))
+        for a in (data.get("adjudications") or [])
+        if isinstance(a, dict) and a.get("type")
+    )
     return Scenario(
         name=str(meta["name"]),
         version=str(meta.get("version") or "1.0.0"),
@@ -314,6 +346,7 @@ def scenario_from_dict(data: dict[str, Any]) -> Scenario:
         satellites=satellites,
         ground_stations=stations,
         events=events,
+        adjudications=adjudications,
         raw=data,
     )
 

@@ -7,11 +7,16 @@ import pytest
 
 from simcore import (
     SimulationEngine,
+    capture_state,
     command_from_template,
     predict_tracks,
+    run_prediction,
     scenario_from_dict,
 )
+from simcore.registry import discover_builtin_models
 from tests.conftest import make_scenario_dict
+
+discover_builtin_models()
 
 
 def build_engine(**overrides) -> SimulationEngine:
@@ -107,3 +112,34 @@ class TestPredictTracks:
             predict_tracks(engine, 0)
         with pytest.raises(ValueError):
             predict_tracks(engine, -10)
+
+
+def _photo_scn():
+    return scenario_from_dict({
+        "meta": {"name": "predict-test"},
+        "sim": {"epoch": "2026-01-01T00:00:00Z", "duration": 600, "step": 10, "seed": 5},
+        "satellites": [
+            {"id": "SAT-01", "name": "obs", "mass": 500, "fuel": 80,
+             "payload": {"type": "光学成像", "state": "待机", "power": 300},
+             "orbit": {"a": 7000, "e": 0.001, "i": 53, "raan": 0, "argp": 0, "M0": 0},
+             "components": [
+                 {"name": "orbit", "model": "orbit.j2"},
+                 {"name": "camera", "model": "sensor.camera"}]},
+            {"id": "SAT-02", "name": "tgt", "mass": 400, "fuel": 60,
+             "payload": {"type": "通信", "state": "待机", "power": 200},
+             "orbit": {"a": 7100, "e": 0.001, "i": 53, "raan": 0, "argp": 0, "M0": 1}},
+        ],
+        "adjudications": [{"type": "adjud.photo"}, {"type": "adjud.proximity"}],
+    })
+
+
+def test_prediction_first_step_matches_real_engine():
+    """capture_state + run_prediction（内部 snapshot/restore + alert_threshold_km 属性）
+    的首个预测采样应与真实引擎继续推进逐位一致。"""
+    eng = SimulationEngine(_photo_scn()); eng.init()
+    for _ in range(3):
+        eng.step()
+    captured = capture_state(eng)               # 读 engine.alert_threshold_km（属性代理）
+    result = run_prediction(captured, horizon_s=eng.step_s * 2, sample_step_s=eng.step_s)
+    real = eng.step()
+    assert result.tracks["SAT-01"][1]["pos_km"] == real.entities["SAT-01"]["pos_km"]

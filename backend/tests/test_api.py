@@ -76,6 +76,16 @@ class TestScenarioApi:
         assert r.status_code == 200
         assert "meta:" in r.text
 
+    def test_default_scenario_demos_camera_and_photo_adjudication(self):
+        # 直接校验默认场景种子（与运行期共享存储解耦，免受其它用例 PUT 影响）
+        from server.defaults import default_scenario
+
+        scn = default_scenario()
+        obs = next(s for s in scn["satellites"] if s["id"] == "SAT-01")
+        assert "sensor.camera" in [c["model"] for c in obs.get("components", [])]
+        assert any(a["type"] == "adjud.photo" for a in scn.get("adjudications", []))
+        assert any(ev.get("type") == "拍照" for ev in scn.get("events", []))
+
 
 class TestSimulationApi:
     def test_full_control_flow(self, client, short_scenario):

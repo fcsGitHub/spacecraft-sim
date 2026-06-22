@@ -20,11 +20,11 @@ import sys
 from pathlib import Path
 from typing import Any, TypeVar
 
-from simcore.model import AtomicModel
+from simcore.model import SimModel
 
-_REGISTRY: dict[str, type[AtomicModel]] = {}
+_REGISTRY: dict[str, type[SimModel]] = {}
 
-TModel = TypeVar("TModel", bound=type[AtomicModel])
+TModel = TypeVar("TModel", bound=type[SimModel])
 
 
 class RegistryError(Exception):
@@ -32,7 +32,7 @@ class RegistryError(Exception):
 
 
 def register_model(cls: TModel) -> TModel:
-    """类装饰器：按 model_type 注册原子模型。"""
+    """类装饰器：按 model_type 注册仿真模型（原子/组合/裁决均可）。"""
     if not cls.model_type:
         raise RegistryError(f"{cls.__name__} 缺少 model_type，无法注册")
     existing = _REGISTRY.get(cls.model_type)
@@ -42,7 +42,7 @@ def register_model(cls: TModel) -> TModel:
     return cls
 
 
-def get_model_class(model_type: str) -> type[AtomicModel]:
+def get_model_class(model_type: str) -> type[SimModel]:
     cls = _REGISTRY.get(model_type)
     if cls is None:
         known = ", ".join(sorted(_REGISTRY)) or "(空)"

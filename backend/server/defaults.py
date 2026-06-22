@@ -17,7 +17,7 @@ def _sat(sid: str, name: str, group: str, faction: str, payload: str, a: float, 
 
 def default_scenario() -> dict[str, Any]:
     """多星协同观测默认场景（与前端 scenario-store.js 同构）。"""
-    return {
+    scn: dict[str, Any] = {
         "meta": {
             "name": "多星协同观测-A",
             "version": "1.2.0",
@@ -51,6 +51,22 @@ def default_scenario() -> dict[str, Any]:
             {"t": 5400, "type": "载荷", "target": "SAT-02", "action": "光学载荷关机"},
         ],
     }
+    # 演示：观测星 SAT-01 挂相机；加空间拍照裁决与一条拍照预设事件
+    scn["satellites"][0]["components"] = [
+        {"name": "thruster", "model": "prop.thruster"},
+        {"name": "orbit", "model": "orbit.j2"},
+        {"name": "attitude", "model": "aocs.simple"},
+        {"name": "payload", "model": "payload.generic"},
+        {"name": "camera", "model": "sensor.camera",
+         "params": {"max_range_km": 5000, "gsd_threshold_m": 200}},
+    ]
+    scn["adjudications"] = [
+        {"type": "adjud.photo"},
+        {"type": "adjud.proximity", "params": {"threshold_km": 100}},
+    ]
+    scn["events"].append(
+        {"t": 1200, "type": "拍照", "target": "SAT-01", "action": "拍照 TGT-01"})
+    return scn
 
 
 def default_external_config() -> dict[str, Any]:

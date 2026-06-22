@@ -26,7 +26,9 @@ from simcore.params import (
     ParamMROutput,
     StepResult,
 )
-from simcore.model import AtomicModel, SimContext
+from simcore.bus import BusMessage
+from simcore.model import AdjudicationModel, AtomicModel, SimContext, SimModel
+from simcore.composite import CompositeModel, SatelliteCompositeModel
 from simcore.registry import (
     register_model,
     get_model_class,
@@ -61,7 +63,12 @@ __all__ = [
     "ParamKeyOutput",
     "ParamMROutput",
     "StepResult",
+    "BusMessage",
+    "SimModel",
     "AtomicModel",
+    "AdjudicationModel",
+    "CompositeModel",
+    "SatelliteCompositeModel",
     "SimContext",
     "register_model",
     "get_model_class",

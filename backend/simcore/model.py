@@ -53,14 +53,20 @@ class SimContext:
         return self.engine.last_entity_states.get(entity_id)
 
 
-class AtomicModel(ABC):
-    """原子模型基类。子类必须定义 model_type 并实现 sim_advance。"""
+class SimModel(ABC):
+    """仿真模型基类：AForce 五接口 + sim_restore，三类模型（原子/组合/裁决）共同契约。
+
+    子类必须定义 model_type 并实现 sim_advance；可声明订阅/发布的总线主题。
+    """
 
     # ---- 模型元数据（供注册表与前端表单自动生成使用）----
     model_type: str = ""          # 注册键，如 "orbit.j2"
     display_name: str = ""        # 中文显示名
     category: str = "general"     # orbit / propulsion / sensor / payload ...
     description: str = ""
+    model_kind: str = ""          # atomic / composite / adjudication
+    subscribes: tuple[str, ...] = ()   # 订阅的总线主题
+    publishes: tuple[str, ...] = ()    # 声明发布的总线主题
     # 属性参数说明：{参数名: {"type","unit","default","desc"}}
     attribute_schema: dict[str, dict[str, Any]] = {}
     # 支持的指控指令：{指令名: {"desc","params": {参数名: {...}}}}
@@ -95,7 +101,7 @@ class AtomicModel(ABC):
         step: float,
         rt_in: ParamRTInput,
     ) -> StepResult:
-        """仿真推进：每步调用一次，返回实时输出/关键输出/恢复数据。"""
+        """仿真推进：每步调用一次，返回实时输出/关键输出/发布消息/恢复数据。"""
 
     def sim_end(self, ctx: SimContext, bjt: Array6, utc: Array6, step: float) -> int:
         """仿真结束：释放资源（一般模型无需处理）。"""
@@ -121,7 +127,28 @@ class AtomicModel(ABC):
             "display_name": cls.display_name or cls.model_type,
             "category": cls.category,
             "description": cls.description,
+            "model_kind": cls.model_kind,
+            "subscribes": cls.subscribes,
+            "publishes": cls.publishes,
             "attribute_schema": cls.attribute_schema,
             "ctr_commands": cls.ctr_commands,
             "dir_commands": cls.dir_commands,
         }
+
+
+class AtomicModel(SimModel):
+    """原子模型：不可再分的叶子（轨道/推进/姿态/载荷/传感器/相机）。
+
+    可作为组合模型的载荷部件挂载。研究人员扩展模型通常继承本类。
+    """
+
+    model_kind = "atomic"
+
+
+class AdjudicationModel(SimModel):
+    """裁决模型：引擎级中立全局裁决逻辑，不归属任何实体/阵营。
+
+    与实体模型平级，由引擎在实体推进之后统一调度（拍照/接近预警等）。
+    """
+
+    model_kind = "adjudication"

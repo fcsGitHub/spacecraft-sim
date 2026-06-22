@@ -109,4 +109,14 @@ def command_from_event(ev: EventDef) -> ScheduledCommand | None:
             t=ev.t, entity_id=ev.target, channel="ctr", name="log", target_model="payload",
             params={"desc": text}, label=label, ev_type="系统", source="event",
         )
+    if ev.ev_type == "拍照":
+        match = re.search(r"((?:SAT|TGT)-\d+)", text)
+        if not match:
+            return None
+        return ScheduledCommand(
+            t=ev.t, entity_id=ev.target, channel="ctr", name="take_photo",
+            target_model="camera", params={"target": match.group(1)},
+            label=label or f"{ev.target} 拍照 {match.group(1)}",
+            ev_type="拍照", source="event",
+        )
     return None

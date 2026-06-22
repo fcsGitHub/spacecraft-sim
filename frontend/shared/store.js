@@ -4,7 +4,7 @@
 
   /* ---------- 默认演示场景（与后端 defaults.py 同构，离线兜底用） ---------- */
   function defaultScenario() {
-    return {
+    var scn = {
       meta: {
         name: "多星协同观测-A",
         version: "1.2.0",
@@ -42,6 +42,20 @@
         { t: 5400, type: "载荷", target: "SAT-02", action: "光学载荷关机" }
       ]
     };
+    /* 演示：观测星 SAT-01 挂相机；加空间拍照裁决与一条拍照预设事件（与后端 defaults.py 同构） */
+    scn.satellites[0].components = [
+      { name: "thruster", model: "prop.thruster" },
+      { name: "orbit", model: "orbit.j2" },
+      { name: "attitude", model: "aocs.simple" },
+      { name: "payload", model: "payload.generic" },
+      { name: "camera", model: "sensor.camera", params: { max_range_km: 5000, gsd_threshold_m: 200 } }
+    ];
+    scn.adjudications = [
+      { type: "adjud.photo" },
+      { type: "adjud.proximity", params: { threshold_km: 100 } }
+    ];
+    scn.events.push({ t: 1200, type: "拍照", target: "SAT-01", action: "拍照 TGT-01" });
+    return scn;
   }
 
   function sat(id, name, group, faction, payload, a, e, i, raan, argp, M0, fuel, mass) {
@@ -184,6 +198,14 @@
       if (!(ev.t >= 0 && ev.t <= s.sim.duration)) err(loc, "触发时刻 t=" + ev.t + "s 超出仿真时长范围");
       if (ev.target && !ids[ev.target]) err(loc, "目标 " + ev.target + " 不存在于卫星列表");
     });
+
+    /* 裁决声明：结构校验（数组 + 每项含非空 type）；注册类别校验以后端为权威 */
+    if (s.adjudications !== undefined && s.adjudications !== null) {
+      if (!Array.isArray(s.adjudications)) err("裁决列表", "adjudications 必须是数组");
+      else s.adjudications.forEach(function (a, idx) {
+        if (!a || typeof a !== "object" || !a.type) err("裁决#" + (idx + 1), "裁决项须为对象且含 type 字段");
+      });
+    }
 
     return { errors: errs, warnings: warns };
   }
