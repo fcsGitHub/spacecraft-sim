@@ -30,6 +30,7 @@ from simcore import (
     validate_scenario,
 )
 from simcore.recorder import RecorderError
+from simcore.perception import fog_recording
 from simcore.registry import load_models_from_dir
 from server.defaults import default_scenario
 from server.external import ExternalConfigStore, FramePusher, test_system
@@ -318,11 +319,12 @@ async def replays() -> list[dict[str, Any]]:
 
 
 @app.get("/api/replays/{run_id}")
-async def replay_detail(run_id: str) -> dict[str, Any]:
+async def replay_detail(run_id: str, faction: str = "") -> dict[str, Any]:
     try:
-        return load_recording(RECORDINGS_DIR, run_id)
+        rec = load_recording(RECORDINGS_DIR, run_id)
     except RecorderError as exc:
         raise HTTPException(404, str(exc)) from exc
+    return fog_recording(rec, faction)
 
 
 @app.delete("/api/replays/{run_id}")
@@ -393,7 +395,14 @@ async def ws_situation(ws: WebSocket) -> None:
     try:
         await runner.send_snapshot(ws)
         while True:
-            await ws.receive_text()  # 心跳/保持连接，内容忽略
+            raw = await ws.receive_text()       # 心跳/控制消息
+            try:
+                msg = json.loads(raw)
+            except (ValueError, TypeError):
+                continue                         # "ping" 等非 JSON 忽略
+            if isinstance(msg, dict) and msg.get("op") == "set_faction":
+                runner.set_faction(ws, str(msg.get("faction") or ""))
+                await runner.send_snapshot(ws)   # 立即补发该阵营视图
     except WebSocketDisconnect:
         pass
     finally:
