@@ -25,6 +25,7 @@ from simcore import (
     run_prediction,
     scenario_from_dict,
 )
+from simcore.perception import faction_view, filter_events
 
 logger = logging.getLogger("scsim.runtime")
 
@@ -52,7 +53,7 @@ class SimulationRunner:
         self.scenario_dict: dict[str, Any] | None = None
         self.user_commands: list[dict[str, Any]] = []
         self.last_recording_id: str | None = None
-        self._clients: set[Any] = set()
+        self._clients: dict[Any, str] = {}   # ws -> faction（"" = 全局/中立）
         self._task: asyncio.Task[None] | None = None
         self._step_debt = 0.0
         self._pending_events: list[dict[str, Any]] = []
@@ -243,10 +244,14 @@ class SimulationRunner:
         self._push_hook = hook
 
     def attach(self, ws: Any) -> None:
-        self._clients.add(ws)
+        self._clients[ws] = ""
 
     def detach(self, ws: Any) -> None:
-        self._clients.discard(ws)
+        self._clients.pop(ws, None)
+
+    def set_faction(self, ws: Any, faction: str) -> None:
+        if ws in self._clients:
+            self._clients[ws] = faction or ""
 
     def status_payload(self) -> dict[str, Any]:
         engine = self.engine
@@ -273,6 +278,29 @@ class SimulationRunner:
         """立即广播当前帧（装载/复位后让客户端同步 T+0 状态）。"""
         await self._broadcast_frame(force=True)
 
+    async def _send_frame_per_faction(self, frame_dict: dict[str, Any],
+                                      events: list[dict[str, Any]], state: str) -> None:
+        if not self._clients:
+            return
+        by_faction: dict[str, list[Any]] = {}
+        for ws, faction in self._clients.items():
+            by_faction.setdefault(faction or "", []).append(ws)
+        dead: list[Any] = []
+        for faction, wss in by_faction.items():
+            view = faction_view(frame_dict, faction)            # 折叠可见实体、移除 perception
+            vis_ids = set(view.get("entities", {}))
+            fac_events = filter_events(events, vis_ids)
+            message = {"type": "frame", "data": {**view, "events": []},
+                       "events": fac_events, "state": state}
+            text = json.dumps(message, ensure_ascii=False)      # 每阵营序列化一次
+            for ws in wss:
+                try:
+                    await ws.send_text(text)
+                except Exception:
+                    dead.append(ws)
+        for ws in dead:
+            self._clients.pop(ws, None)
+
     async def _broadcast_frame(self, force: bool = False) -> None:
         engine = self.engine
         if engine is None or engine.last_frame is None:
@@ -282,40 +310,38 @@ class SimulationRunner:
             return
         self._last_broadcast = now
         frame_dict = engine.last_frame.to_dict()
-        message = {
-            "type": "frame",
-            "data": {**frame_dict, "events": []},
-            "events": self._pending_events,
-            "state": self.state,
-        }
+        events = self._pending_events
         self._pending_events = []
-        await self._send_all(message)
+        await self._send_frame_per_faction(frame_dict, events, self.state)
         if self._push_hook is not None:
+            truth = {k: v for k, v in frame_dict.items() if k != "perception"}
+            truth["events"] = []
             try:
-                await self._push_hook(message["data"])
+                await self._push_hook(truth)            # 外发用全局真值（不含 perception）
             except Exception:
                 logger.exception("外发推送失败")
 
     async def send_snapshot(self, ws: Any) -> None:
-        """新客户端接入：补发状态与最新帧。"""
+        """新客户端接入：补发状态与最新帧（按该连接阵营施加迷雾）。"""
+        faction = self._clients.get(ws, "")
         await ws.send_json({"type": "status", "data": self.status_payload()})
         if self.engine and self.engine.last_frame:
-            frame_dict = self.engine.last_frame.to_dict()
-            await ws.send_json({"type": "frame", "data": {**frame_dict, "events": []},
+            view = faction_view(self.engine.last_frame.to_dict(), faction)
+            await ws.send_json({"type": "frame", "data": {**view, "events": []},
                                 "events": [], "state": self.state})
 
     async def _send_all(self, message: dict[str, Any]) -> None:
         if not self._clients:
             return
-        text = json.dumps(message, ensure_ascii=False)  # 序列化一次，N 客户端复用
+        text = json.dumps(message, ensure_ascii=False)
         dead: list[Any] = []
-        for ws in self._clients:
+        for ws in list(self._clients):
             try:
                 await ws.send_text(text)
             except Exception:
                 dead.append(ws)
         for ws in dead:
-            self._clients.discard(ws)
+            self._clients.pop(ws, None)
 
     # ---- 工具 ----
 
