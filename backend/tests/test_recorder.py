@@ -98,3 +98,16 @@ class TestRecordingMeta:
         recorder.save(tmp_path)
         listing = list_recordings(tmp_path)
         assert len(listing) == 1  # meta 旁车不重复出现在清单
+
+
+def test_recorder_persists_perception():
+    from simcore.engine import Frame
+    from simcore.recorder import Recorder
+    from simcore.scenario import scenario_from_dict
+    from tests.conftest import make_scenario_dict
+
+    rec = Recorder(scenario=scenario_from_dict(make_scenario_dict()))
+    rec.on_frame(Frame(t=0.0, utc="2026-06-12T04:00:00Z",
+                       entities={"R1": {"faction": "红方", "pos_km": [1, 0, 0]}},
+                       perception={"蓝方": {"R1": {"pos_km": [1, 0, 0], "source": "onboard", "age_s": 0.0}}}))
+    assert rec.frames[-1]["perception"]["蓝方"]["R1"]["source"] == "onboard"

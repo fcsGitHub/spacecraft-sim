@@ -63,7 +63,9 @@ class Recorder:
         self.events.extend(frame_dict["events"])
         if frame.t + 1e-9 >= self._next_record_t:
             self.frames.append(
-                {"t": frame_dict["t"], "utc": frame_dict["utc"], "entities": frame_dict["entities"]}
+                {"t": frame_dict["t"], "utc": frame_dict["utc"],
+                 "entities": frame_dict["entities"],
+                 "perception": frame_dict.get("perception", {})}
             )
             self._next_record_t = frame.t + self.scenario.record_interval_s
 
