@@ -249,3 +249,20 @@ def test_default_scenario_demos_subsatellite():
     assert child_id in ids
     child = next(s for s in built.satellites if s.sat_id == child_id)
     assert child.parent == "SAT-06"
+
+
+def test_default_scenario_demos_perception():
+    """默认场景演示战争迷雾：挂感知载荷 + 启用感知裁决，且场景仍合法。"""
+    from server.defaults import default_scenario
+    from simcore.scenario import validate_scenario
+
+    scn = default_scenario()
+    types = {a["type"] for a in scn.get("adjudications", [])}
+    assert "adjud.perception_onboard" in types
+    has_sensor = any(
+        any(c.get("model") == "sensor.perception" for c in (s.get("components") or []))
+        for s in scn["satellites"]
+    )
+    assert has_sensor, "至少一颗星应挂感知载荷演示战争迷雾"
+    errors, _ = validate_scenario(scn)
+    assert errors == []

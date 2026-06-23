@@ -50,9 +50,19 @@
       { name: "payload", model: "payload.generic" },
       { name: "camera", model: "sensor.camera", params: { max_range_km: 5000, gsd_threshold_m: 200 } }
     ];
+    /* 演示：给侦察星 SAT-02 挂感知载荷，启用星上感知 + 延时感知裁决（与后端 defaults.py 同构） */
+    scn.satellites[1].components = [
+      { name: "thruster", model: "prop.thruster" },
+      { name: "orbit", model: "orbit.j2" },
+      { name: "attitude", model: "aocs.simple" },
+      { name: "payload", model: "payload.generic" },
+      { name: "sensor", model: "sensor.perception", params: { max_range_km: 4000, state: "开机" } }
+    ];
     scn.adjudications = [
       { type: "adjud.photo" },
-      { type: "adjud.proximity", params: { threshold_km: 100 } }
+      { type: "adjud.proximity", params: { threshold_km: 100 } },
+      { type: "adjud.perception_delay", params: { delay_s: 30 } },
+      { type: "adjud.perception_onboard" }
     ];
     scn.events.push({ t: 1200, type: "拍照", target: "SAT-01", action: "拍照 TGT-01" });
     /* 演示：机动试验星 SAT-06 挂载一颗可独立显示的子星（与后端 defaults.py 同构） */
