@@ -248,11 +248,30 @@
   function setEntityFrame(t, entities) {
     sats.forEach(function (s) {
       var st = entities[s.data.id];
-      if (!st || !st.pos_km) return;
-      // 轨道线随机动后的瞬时根数更新
+      if (!st || !st.pos_km) {
+        // 迷雾：未感知 → 隐藏 marker / 轨道线 / 标签
+        s.mesh.visible = false;
+        if (s.orbitLine) s.orbitLine.visible = false;
+        s.labelEl.style.display = "none";
+        s.state = null;
+        return;
+      }
+      s.mesh.visible = true;
+      // 感知态（非己方、含 source）：ghost 标记；己方/真值：实心 + 轨道线
+      var perceived = !!st.source;
+      var delayed = st.source === "delayed";
+      s.mesh.material.color.set(s.color);
+      if (s.mesh.material.transparent !== delayed) {
+        s.mesh.material.transparent = delayed;
+        s.mesh.material.needsUpdate = true;
+      }
+      s.mesh.material.opacity = delayed ? 0.45 : 1.0;
+      if (s.orbitLine) s.orbitLine.visible = !perceived;   // 感知态无完整根数 → 不画椭圆
+      // 轨道线随机动后的瞬时根数更新（仅真值帧带 orbit）
       if (st.orbit && s.state && s.state.orbit && orbitChanged(st.orbit, s.state.orbit)) {
         orbitGroup.remove(s.orbitLine);
         s.orbitLine = makeOrbitLine(st.orbit, s.color);
+        if (perceived) s.orbitLine.visible = false;
         orbitGroup.add(s.orbitLine);
       }
       s.state = st;
@@ -410,6 +429,7 @@
       el.textContent = extra || el.dataset.base || el.textContent;
     }
     sats.forEach(function (s) {
+      if (!s.mesh.visible) { s.labelEl.style.display = "none"; return; }  // 迷雾隐藏
       s.labelEl.dataset.base = s.data.name;
       var txt = s.data.name + (s.labelEl.dataset.dist && viewMode === "local" && s.data.id !== selectedId ? " · " + s.labelEl.dataset.dist : "");
       s.labelEl.classList.toggle("sel", s.data.id === selectedId);

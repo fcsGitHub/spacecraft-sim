@@ -48,13 +48,19 @@
     var st = ctx.stateOf(id);
     return st && st.alt_km != null ? Math.round(st.alt_km) + " km" : "—";
   }
+  function isVisible(id) {
+    // 全局态势始终可见；迷雾下仅当前帧存在（己方+已感知）可见
+    return ctx.stateOf(id) != null;
+  }
   function renderEntities() {
     var body = $("ent-body");
     body.innerHTML = "";
     var S = ctx.scenario();
     var sel = ctx.getSelected();
+    var anyFrame = S.satellites.some(function (s) { return ctx.stateOf(s.id) != null; });
     var groups = {};
     S.satellites.forEach(function (s) {
+      if (anyFrame && !isVisible(s.id)) return;        // 帧已到达且该星不可见 → 迷雾隐藏
       (groups[s.group] = groups[s.group] || []).push(s);
     });
     Object.keys(groups).forEach(function (g) {
@@ -84,7 +90,8 @@
         body.appendChild(it);
       });
     }
-    $("ent-count").textContent = S.satellites.length + " 星 · " + gsArr.length + " 站";
+    var visCount = S.satellites.filter(function (s) { return !anyFrame || isVisible(s.id); }).length;
+    $("ent-count").textContent = visCount + " 星 · " + gsArr.length + " 站";
   }
   function refreshEntityAlts() {
     document.querySelectorAll(".ent-item[data-sat]").forEach(function (it) {
@@ -585,6 +592,7 @@
       if (sl) sl.value = id;
     },
     update: function () {
+      renderEntities();
       refreshEntityAlts();
       updateSelCard();
       if (activeTab === "telemetry") updateTelemetry();

@@ -157,6 +157,20 @@
   SitScene.build(S);
   SitScene.setTime(0);
 
+  /* ---------- 阵营视角（战争迷雾） ---------- */
+  var viewFaction = "全局";
+  var faction = SitFaction.build({
+    scenario: function () { return S; },
+    onChange: function (f) {
+      viewFaction = f;
+      if (mode === "replay") {
+        if (replay.recId) loadReplay(replay.recId);   // 回放：按阵营重新拉取
+      } else {
+        sitConn.setFaction(f === "全局" ? "" : f);     // 实时：声明阵营
+      }
+    }
+  });
+
   function selectSat(id) {
     selected = selected === id ? null : id;
     SitScene.setSelected(selected);
@@ -332,7 +346,8 @@
 
   function loadReplay(recId) {
     if (!recId) return;
-    SCAPI.get("/api/replays/" + encodeURIComponent(recId)).then(function (rec) {
+    var q = viewFaction && viewFaction !== "全局" ? "?faction=" + encodeURIComponent(viewFaction) : "";
+    SCAPI.get("/api/replays/" + encodeURIComponent(recId) + q).then(function (rec) {
       replay.recId = recId;
       replay.frames = rec.frames || [];
       replay.duration = rec.duration_recorded_s || (replay.frames.length ? replay.frames[replay.frames.length - 1].t : 0);
@@ -453,7 +468,7 @@
     }
   }
 
-  SCAPI.connectSituation({
+  var sitConn = SCAPI.connectSituation({
     onStatus: applyStatus,
     onFrame: handleFrame,
     onClose: function () {
@@ -530,6 +545,7 @@
         rebuildPresetEvents();
         SitScene.build(S);
         SitPanels.rebuild();
+        if (faction) faction.rebuild();
       }
       return SCAPI.get("/api/simulation/status");
     }).then(function (st) {

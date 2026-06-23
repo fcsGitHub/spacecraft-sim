@@ -29,6 +29,13 @@
     var closed = false;
     var ws = null;
     var pingTimer = null;
+    var faction = "";                       // 当前阵营（重连后重发）
+
+    function sendFaction() {
+      if (ws && ws.readyState === 1) {
+        ws.send(JSON.stringify({ op: "set_faction", faction: faction }));
+      }
+    }
 
     function open() {
       if (closed) return;
@@ -36,6 +43,7 @@
       ws = new WebSocket(proto + location.host + "/ws/situation");
       ws.onopen = function () {
         if (handlers.onOpen) handlers.onOpen();
+        if (faction) sendFaction();          // 重连后恢复阵营视图
         pingTimer = setInterval(function () {
           if (ws && ws.readyState === 1) ws.send("ping");
         }, 15000);
@@ -55,7 +63,8 @@
     }
     open();
     return {
-      close: function () { closed = true; clearInterval(pingTimer); if (ws) ws.close(); }
+      close: function () { closed = true; clearInterval(pingTimer); if (ws) ws.close(); },
+      setFaction: function (f) { faction = f || ""; sendFaction(); }
     };
   }
 
