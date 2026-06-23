@@ -249,10 +249,12 @@
     sats.forEach(function (s) {
       var st = entities[s.data.id];
       if (!st || !st.pos_km) {
-        // 迷雾：未感知 → 隐藏 marker / 轨道线 / 标签
+        // 迷雾：未感知 → 隐藏 marker / 轨道线 / 标签 / 历史航迹（清空轨迹避免泄露敌方路径）
         s.mesh.visible = false;
         if (s.orbitLine) s.orbitLine.visible = false;
         s.labelEl.style.display = "none";
+        s.trailPts = [];
+        s.trail.geometry.setDrawRange(0, 0);
         s.state = null;
         return;
       }
