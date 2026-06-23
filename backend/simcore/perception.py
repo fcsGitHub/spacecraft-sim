@@ -3,6 +3,12 @@
 
 裁决产出的 perception 形如 {faction: {entity_id: {pos_km, vel_kmps, source, age_s, observers}}}，
 仅含非己方实体。faction_view 把「己方真值 + 已感知非己方」折叠为对外帧并移除 perception。
+
+不可变约定（与全局确定性/性能契约一致）：本模块仅做浅拷贝构造新的外层容器，
+**不修改入参**；嵌套载荷（pos_km/vel_kmps 等列表、实体快照）按「写一次、永不就地修改」
+的全局约定与入参共享引用——这是热路径上规避 deepcopy 的有意取舍。下游消费者
+（引擎并入 frozen Frame、运行时按阵营 faction_view 后立即序列化下发、回放端点
+fog_recording 后即序列化返回）只读不改这些视图，故跨阵营/跨帧不会相互污染。
 """
 
 from __future__ import annotations
