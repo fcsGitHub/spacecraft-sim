@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from simcore.bus import BusMessage, MessageBus
+from simcore.perception import merge_perception
 from simcore.composite import SatelliteCompositeModel, build_satellite
 from simcore.model import AdjudicationModel, SimContext
 from simcore.params import (
@@ -39,12 +40,14 @@ class Frame:
     utc: str
     entities: dict[str, dict[str, Any]]
     events: tuple[ParamKeyOutput, ...] = ()
+    perception: dict[str, dict[str, dict[str, Any]]] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "t": self.t,
             "utc": self.utc,
             "entities": self.entities,
+            "perception": self.perception,
             "events": [
                 {"t": e.time, "target": e.entity_id, "source": e.source, "level": e.level,
                  "type": e.event, "text": e.message, "data": dict(e.data)}
@@ -189,7 +192,7 @@ class SimulationEngine:
         new_states, ent_events, published1 = self._advance_entities(step, env1)
 
         env2 = self._env(new_states, sun_hat, sim_time=self.clock.t + step)
-        adjud_events, published2 = self._advance_adjuds(step, env2, published1)
+        adjud_events, published2, perception = self._advance_adjuds(step, env2, published1)
 
         if step > 0:
             self.clock = self.clock.advanced(step)
@@ -197,7 +200,8 @@ class SimulationEngine:
         self._inbox = self._route_to_entities(published1 + published2)
 
         frame = Frame(t=self.clock.t, utc=self.clock.utc_iso, entities=new_states,
-                      events=tuple([*fired, *ent_events, *adjud_events]))
+                      events=tuple([*fired, *ent_events, *adjud_events]),
+                      perception=perception)
         self.last_frame = frame
         return frame
 
@@ -241,6 +245,7 @@ class SimulationEngine:
         bjt, utc = self.clock.bjt_array, self.clock.utc_array
         events: list[ParamKeyOutput] = []
         published: list[BusMessage] = []
+        perception_parts: list[dict[str, Any]] = []
         for adj in self._adjuds:
             msgs = MessageBus.filter_for(published1, set(adj.model.subscribes))
             rt_in = ParamRTInput(env=env, upstream={}, messages=msgs)
@@ -248,7 +253,10 @@ class SimulationEngine:
             published.extend(self.bus.stamp(res.messages, source=adj.model.model_type))
             events.extend(res.key_outputs)
             adj.last_mr = res.mr_output
-        return events, tuple(published)
+            part = res.rt_output.data.get("perception")
+            if part:
+                perception_parts.append(part)
+        return events, tuple(published), merge_perception(perception_parts)
 
     def _route_to_entities(self, messages: tuple[BusMessage, ...]) -> dict[str, tuple[BusMessage, ...]]:
         inbox: dict[str, tuple[BusMessage, ...]] = {}
