@@ -100,6 +100,22 @@ body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 }
 .vm:hover { color: var(--dark-ink); }
 .vm.active { background: var(--accent); color: white; }
+.faction-switch {
+  position: absolute; top: 52px; left: 12px;
+  z-index: 12;
+  display: flex; gap: 4px;
+  background: oklch(0.18 0.015 255 / 0.85);
+  border: 1px solid var(--dark-line);
+  border-radius: 7px; padding: 3px;
+  backdrop-filter: blur(6px);
+}
+.faction-btn {
+  font-family: var(--font); font-size: 12px; font-weight: 500;
+  border: none; background: transparent; color: var(--dark-ink-2);
+  padding: 5px 14px; border-radius: 5px; cursor: pointer;
+}
+.faction-btn:hover { color: var(--dark-ink); }
+.faction-btn.active { background: var(--accent); color: white; }
 .view-hint {
   position: absolute; bottom: 10px; left: 12px;
   font-size: 10.5px; color: var(--dark-ink-3);

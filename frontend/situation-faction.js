@@ -19,7 +19,6 @@
     var wrap = document.createElement("div");
     wrap.className = "faction-switch";
     wrap.id = "faction-switch";
-    wrap.style.cssText = "display:flex;gap:4px;margin-top:6px;";
 
     var current = "全局";
     var options = ["全局"].concat(distinctFactions(scn));
@@ -28,7 +27,7 @@
       wrap.innerHTML = "";
       options.forEach(function (f) {
         var b = document.createElement("button");
-        b.className = "vm" + (f === current ? " active" : "");
+        b.className = "faction-btn" + (f === current ? " active" : "");
         b.textContent = f;
         b.onclick = function () {
           if (current === f) return;
